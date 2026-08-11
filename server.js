@@ -136,7 +136,6 @@ setInterval(() => {
       gerald.resurrectsAt = gerald.diedAt + (15 * 60 * 1000);
       gerald.stats = { ...gerald.stats, deaths: (gerald.stats?.deaths || 0) + 1 };
       
-      // Save death snapshot for Gerald Cam
       const snapshot = {
         generation: gerald.generation,
         diedAt: gerald.diedAt,
@@ -184,6 +183,25 @@ io.on('connection', (socket) => {
     }
 
     const clientIp = getClientIp(socket);
+
+    // ─── ABUSE THROTTLE: max 10 actions per minute per IP ───
+    const now = Date.now();
+    const windowStart = now - 60000;
+    const throttleKey = `${clientIp}:${Math.floor(now / 60000)}`;
+    
+    // Clean old throttle entries
+    for (const [k, v] of actionThrottles) {
+      if (v.time < windowStart) actionThrottles.delete(k);
+    }
+    
+    const throttleData = actionThrottles.get(throttleKey);
+    const actionCount = (throttleData?.count || 0) + 1;
+    if (actionCount > 10) {
+      return socket.emit('errorMsg', 'Slow down, chaos agent.');
+    }
+    actionThrottles.set(throttleKey, { count: actionCount, time: now });
+    // ─── END THROTTLE ───
+
     const remaining = getCooldownRemaining(clientIp);
     if (remaining > 0) {
       const mins = Math.ceil(remaining / 60000);
@@ -192,7 +210,6 @@ io.on('connection', (socket) => {
 
     const cc = (country || 'Unknown').toUpperCase();
     
-    // Update country stats
     if (!gerald.countryStats[cc]) gerald.countryStats[cc] = { feeds: 0, poisons: 0, plays: 0, score: 0 };
     gerald.countryStats[cc][type === 'feed' ? 'feeds' : type === 'poison' ? 'poisons' : 'plays']++;
     gerald.countryStats[cc].score = (gerald.countryStats[cc].feeds + gerald.countryStats[cc].plays) - gerald.countryStats[cc].poisons;
@@ -242,6 +259,9 @@ io.on('connection', (socket) => {
     io.emit('lastAction', gerald.lastAction);
   });
 });
+
+// ─── Abuse throttle store ───
+const actionThrottles = new Map();
 
 // ─── Shutdown ───
 async function shutdown() {
