@@ -14,18 +14,23 @@ const io = new Server(httpServer);
 
 const STATE_FILE = path.join(__dirname, 'gerald-state.json');
 
-const DEFAULT_STATE = {
+const DEFAULT_STATE = () => ({
   health: 100,
-  hunger: 20,
-  happiness: 80,
+  fullness: 100,
+  happiness: 100,
   status: 'ALIVE',
   generation: 1,
+  bornAt: Date.now(),
   diedAt: null,
   resurrectsAt: null,
-  stats: { feeds: 0, plays: 0, deaths: 0 }
-};
+  stats: { feeds: 0, poisons: 0, plays: 0, deaths: 0, resurrections: 0 },
+  lastAction: null,
+  countryStats: {},
+  deathHistory: [],
+  userCount: 0
+});
 
-let gerald = JSON.parse(JSON.stringify(DEFAULT_STATE));
+let gerald = DEFAULT_STATE();
 let tickCount = 0;
 
 // ─── Persistence ───
@@ -34,27 +39,21 @@ async function loadState() {
     const raw = await fs.readFile(STATE_FILE, 'utf8');
     const saved = JSON.parse(raw);
     
-    // If Gerald was dead when we shut down, check if he should resurrect
     if (saved.status === 'DEAD' && saved.diedAt) {
       const DEAD_FOR = Date.now() - saved.diedAt;
-      const RESURRECTION_TIME = 30 * 60 * 1000; // 30 min
+      const RESURRECTION_TIME = 15 * 60 * 1000;
       
       if (DEAD_FOR >= RESURRECTION_TIME) {
-        // Resurrect immediately
-        gerald = JSON.parse(JSON.stringify(DEFAULT_STATE));
-        gerald.generation = (saved.generation || 1) + 1;
-        gerald.stats = { ...(saved.stats || {}), deaths: (saved.stats?.deaths || 0) + 1 };
-        console.log(`Gerald auto-resurrected! Gen ${gerald.generation}`);
+        resurrectGerald(saved.generation, saved.stats, saved.countryStats, saved.deathHistory);
       } else {
-        // Still dead, schedule resurrection
-        gerald = { ...DEFAULT_STATE, ...saved, resurrectsAt: saved.diedAt + RESURRECTION_TIME };
-        setTimeout(resurrectGerald, RESURRECTION_TIME - DEAD_FOR);
+        gerald = { ...DEFAULT_STATE(), ...saved, status: 'DEAD', resurrectsAt: saved.diedAt + RESURRECTION_TIME };
+        setTimeout(() => resurrectGerald(saved.generation, saved.stats, saved.countryStats, saved.deathHistory), RESURRECTION_TIME - DEAD_FOR);
       }
     } else {
-      gerald = { ...DEFAULT_STATE, ...saved };
+      gerald = { ...DEFAULT_STATE(), ...saved };
     }
   } catch {
-    gerald = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    gerald = DEFAULT_STATE();
   }
 }
 
@@ -62,25 +61,31 @@ async function saveState() {
   try {
     await fs.writeFile(STATE_FILE, JSON.stringify(gerald, null, 2));
   } catch (err) {
-    console.error('Save failed:', err);
+    console.error('💾 Save failed:', err);
   }
 }
 
-function resurrectGerald() {
+function resurrectGerald(prevGen, prevStats, prevCountries, prevDeaths) {
   if (gerald.status !== 'DEAD') return;
   
-  const prevGen = gerald.generation;
-  gerald = JSON.parse(JSON.stringify(DEFAULT_STATE));
-  gerald.generation = prevGen + 1;
-  gerald.stats = { ...gerald.stats, deaths: (gerald.stats?.deaths || 0) + 1 };
+  gerald = DEFAULT_STATE();
+  gerald.generation = (prevGen || 1) + 1;
+  gerald.stats = { 
+    ...(prevStats || {}), 
+    deaths: (prevStats?.deaths || 0),
+    resurrections: (prevStats?.resurrections || 0) + 1
+  };
+  gerald.countryStats = prevCountries || {};
+  gerald.deathHistory = prevDeaths || [];
   
   io.emit('stateUpdate', gerald);
-  io.emit('log', `Gerald has been resurrected! Welcome to Generation ${gerald.generation}!`);
+  io.emit('log', `🥚 A new egg hatched! Welcome to Generation ${gerald.generation}!`);
   saveState();
 }
 
-// ─── Cooldowns (with cleanup) ───
+// ─── Cooldowns ───
 const cooldowns = new Map();
+const COOLDOWN_MS = 30 * 60 * 1000;
 
 function getClientIp(socket) {
   const forwarded = socket.handshake.headers['x-forwarded-for'];
@@ -88,54 +93,74 @@ function getClientIp(socket) {
   return socket.handshake.address;
 }
 
-function isOnCooldown(ip) {
+function getCooldownRemaining(ip) {
   const last = cooldowns.get(ip);
-  if (!last) return false;
-  if (Date.now() - last > 3600000) {
+  if (!last) return 0;
+  const remaining = COOLDOWN_MS - (Date.now() - last);
+  if (remaining <= 0) {
     cooldowns.delete(ip);
-    return false;
+    return 0;
   }
-  return true;
+  return remaining;
 }
 
-// Clean stale cooldowns every 10 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [ip, time] of cooldowns) {
-    if (now - time > 3600000) cooldowns.delete(ip);
+    if (now - time > COOLDOWN_MS) cooldowns.delete(ip);
   }
-}, 600000);
+}, 300000);
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── User Count ───
+function broadcastUserCount() {
+  const count = io.engine.clientsCount;
+  gerald.userCount = count;
+  io.emit('userCount', count);
+}
 
 // ─── Game Loop ───
 setInterval(() => {
   if (gerald.status === 'ALIVE') {
-    gerald.hunger = Math.min(100, gerald.hunger + 1);
-    gerald.happiness = Math.max(0, gerald.happiness - 1);
+    gerald.fullness = Math.max(0, gerald.fullness - 1.2);
+    gerald.happiness = Math.max(0, gerald.happiness - 0.7);
 
-    if (gerald.hunger >= 100 || gerald.happiness <= 0) {
-      gerald.health = Math.max(0, gerald.health - 5);
+    if (gerald.fullness <= 0 || gerald.happiness <= 0) {
+      gerald.health = Math.max(0, gerald.health - 2.5);
     }
 
     if (gerald.health <= 0 && gerald.status !== 'DEAD') {
       gerald.status = 'DEAD';
       gerald.diedAt = Date.now();
-      gerald.resurrectsAt = gerald.diedAt + (30 * 60 * 1000);
+      gerald.resurrectsAt = gerald.diedAt + (15 * 60 * 1000);
       gerald.stats = { ...gerald.stats, deaths: (gerald.stats?.deaths || 0) + 1 };
       
-      io.emit('log', `Gerald has died! Generation ${gerald.generation} has fallen...`);
+      // Save death snapshot for Gerald Cam
+      const snapshot = {
+        generation: gerald.generation,
+        diedAt: gerald.diedAt,
+        bornAt: gerald.bornAt,
+        finalHealth: gerald.health,
+        finalFullness: gerald.fullness,
+        finalHappiness: gerald.happiness,
+        genStats: { ...gerald.stats },
+        countryStats: { ...gerald.countryStats }
+      };
+      gerald.deathHistory = [snapshot, ...(gerald.deathHistory || [])].slice(0, 20);
+      
+      const livedMins = Math.floor((gerald.diedAt - gerald.bornAt) / 60000);
       io.emit('stateUpdate', gerald);
+      io.emit('deathSnapshot', snapshot);
+      io.emit('log', `💀 Gerald has died! Generation ${gerald.generation} lasted ${livedMins} minutes.`);
       saveState();
       
-      // Auto-resurrect in 30 minutes
-      setTimeout(resurrectGerald, 30 * 60 * 1000);
+      setTimeout(() => resurrectGerald(gerald.generation, gerald.stats, gerald.countryStats, gerald.deathHistory), 15 * 60 * 1000);
       return;
     }
 
     io.emit('stateUpdate', gerald);
     
-    // Save to disk every 30 seconds (not every tick)
     tickCount++;
     if (tickCount % 6 === 0) saveState();
   }
@@ -143,53 +168,91 @@ setInterval(() => {
 
 // ─── WebSocket ───
 io.on('connection', (socket) => {
+  broadcastUserCount();
   socket.emit('stateUpdate', gerald);
+  socket.emit('userCount', gerald.userCount);
 
-  socket.on('action', ({ type }) => {
+  socket.on('disconnect', () => broadcastUserCount());
+
+  socket.on('action', ({ type, country }) => {
+    if (!['feed', 'poison', 'play'].includes(type)) {
+      return socket.emit('errorMsg', 'Invalid action.');
+    }
+
     if (gerald.status === 'DEAD') {
       return socket.emit('errorMsg', 'Gerald is dead. A new egg will hatch soon...');
     }
 
-    if (type !== 'feed' && type !== 'play') {
-      return socket.emit('errorMsg', 'Invalid action.');
-    }
-
     const clientIp = getClientIp(socket);
-    if (isOnCooldown(clientIp)) {
-      const last = cooldowns.get(clientIp);
-      const mins = Math.ceil((3600000 - (Date.now() - last)) / 60000);
-      return socket.emit('errorMsg', `Cooldown: ${mins} minutes remaining.`);
+    const remaining = getCooldownRemaining(clientIp);
+    if (remaining > 0) {
+      const mins = Math.ceil(remaining / 60000);
+      return socket.emit('errorMsg', `Wait ${mins} minute${mins !== 1 ? 's' : ''}.`);
     }
 
-    if (type === 'feed') {
-      gerald.hunger = Math.max(0, gerald.hunger - 20);
-      gerald.health = Math.min(100, gerald.health + 5);
-      gerald.stats = { ...gerald.stats, feeds: (gerald.stats?.feeds || 0) + 1 };
-    } else if (type === 'play') {
-      gerald.happiness = Math.min(100, gerald.happiness + 25);
-      gerald.stats = { ...gerald.stats, plays: (gerald.stats?.plays || 0) + 1 };
+    const cc = (country || 'Unknown').toUpperCase();
+    
+    // Update country stats
+    if (!gerald.countryStats[cc]) gerald.countryStats[cc] = { feeds: 0, poisons: 0, plays: 0, score: 0 };
+    gerald.countryStats[cc][type === 'feed' ? 'feeds' : type === 'poison' ? 'poisons' : 'plays']++;
+    gerald.countryStats[cc].score = (gerald.countryStats[cc].feeds + gerald.countryStats[cc].plays) - gerald.countryStats[cc].poisons;
+
+    let logMsg = '';
+    let effectType = '';
+
+    switch (type) {
+      case 'feed':
+        gerald.fullness = Math.min(100, gerald.fullness + 25);
+        gerald.health = Math.min(100, gerald.health + 8);
+        gerald.happiness = Math.min(100, gerald.happiness + 5);
+        gerald.stats = { ...gerald.stats, feeds: (gerald.stats?.feeds || 0) + 1 };
+        logMsg = gerald.health < 30 
+          ? `A hero from ${cc} saved a dying Gerald! ❤️🐟` 
+          : `Someone from ${cc} fed Gerald a tasty fish! 🐟`;
+        effectType = 'feed';
+        break;
+        
+      case 'poison':
+        gerald.health = Math.max(0, gerald.health - 22);
+        gerald.happiness = Math.max(0, gerald.happiness - 18);
+        gerald.fullness = Math.max(0, gerald.fullness - 8);
+        gerald.stats = { ...gerald.stats, poisons: (gerald.stats?.poisons || 0) + 1 };
+        logMsg = gerald.health < 25 
+          ? `Someone from ${cc} nearly killed Gerald! ☠️💀` 
+          : `Someone from ${cc} tried to poison Gerald! ☠️`;
+        effectType = 'poison';
+        break;
+        
+      case 'play':
+        gerald.happiness = Math.min(100, gerald.happiness + 28);
+        gerald.fullness = Math.max(0, gerald.fullness - 4);
+        gerald.stats = { ...gerald.stats, plays: (gerald.stats?.plays || 0) + 1 };
+        logMsg = `Someone from ${cc} played with Gerald! 🧶`;
+        effectType = 'play';
+        break;
     }
 
+    gerald.lastAction = { type, country: cc, time: Date.now() };
     cooldowns.set(clientIp, Date.now());
     saveState();
 
     io.emit('stateUpdate', gerald);
-    io.emit('log', `A stranger ${type === 'feed' ? 'fed' : 'played with'} Gerald!`);
+    io.emit('log', logMsg);
+    io.emit('actionEffect', { type: effectType });
+    io.emit('lastAction', gerald.lastAction);
   });
 });
 
-// ─── Graceful Shutdown ───
+// ─── Shutdown ───
 async function shutdown() {
-  console.log('Saving Gerald...');
   await saveState();
   process.exit(0);
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// ─── Start ───
 const PORT = process.env.PORT || 3000;
 await loadState();
 httpServer.listen(PORT, () => {
-  console.log(`Gerald is alive on port ${PORT} (Gen ${gerald.generation})`);
+  console.log(`🐱 Gerald is live on port ${PORT} (Gen ${gerald.generation})`);
 });
