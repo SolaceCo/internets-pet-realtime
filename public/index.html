@@ -6,6 +6,7 @@
   <title>The Internet's Pet - Gerald</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       text-align: center; 
@@ -13,14 +14,19 @@
       color: #fff; 
       padding: 20px; 
       margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .card {
       background: #1e1e28;
       border: 2px solid #2d2d3a;
       border-radius: 16px;
-      padding: 20px;
-      max-width: 340px;
+      padding: 24px;
+      max-width: 380px;
+      width: 100%;
       margin: 10px auto;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
@@ -35,11 +41,26 @@
       background: #2a2a38;
       border-radius: 50%;
       border: 4px solid #3b3b4f;
+      transition: all 0.3s ease;
+    }
+
+    .pet-container.dead {
+      background: #1a1a24;
+      border-color: #444;
     }
 
     .pet-container svg {
       width: 120px;
       height: 120px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
     }
 
     .status-badge {
@@ -48,14 +69,25 @@
       border-radius: 20px;
       font-size: 12px;
       font-weight: bold;
-      background: #2e7d32;
-      color: #a5d6a7;
-      margin-bottom: 15px;
     }
+
+    .status-alive { background: #2e7d32; color: #a5d6a7; }
+    .status-dead { background: #c62828; color: #ffcdd2; }
+    .status-connecting { background: #f9a825; color: #fffde7; }
+
+    .conn-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+      display: inline-block;
+    }
+    .conn-online { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+    .conn-offline { background: #f44336; box-shadow: 0 0 6px #f44336; }
 
     .bar-group {
       text-align: left;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .bar-label {
@@ -95,13 +127,14 @@
       background: #ff70a6; 
       color: #fff;
       border: none; 
-      padding: 12px; 
-      font-size: 14px;
+      padding: 14px; 
+      font-size: 15px;
       font-weight: bold; 
       cursor: pointer; 
       border-radius: 10px; 
       box-shadow: 0 4px 0 #d44d7d;
       transition: all 0.1s;
+      touch-action: manipulation;
     }
 
     button:active {
@@ -109,24 +142,84 @@
       box-shadow: 0 1px 0 #d44d7d;
     }
 
+    button:disabled {
+      background: #555;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: #ff5252;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
     #log { 
       font-size: 12px; 
       color: #777; 
       margin-top: 20px; 
-      height: 60px; 
+      height: 80px; 
       overflow-y: auto; 
+      text-align: left;
+      padding: 8px;
+      background: #16161f;
+      border-radius: 8px;
+    }
+    
+    #log p { margin: 4px 0; }
+
+    .resurrection-timer {
+      font-size: 14px;
+      color: #ff8a80;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .stats {
+      font-size: 11px;
+      color: #666;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 400px) {
+      .card { padding: 16px; }
+      .pet-container { width: 140px; height: 140px; }
+      .pet-container svg { width: 100px; height: 100px; }
+      button { font-size: 14px; padding: 12px; }
     }
   </style>
 </head>
 <body>
 
+  <div id="toast"></div>
+
   <div class="card">
-    <h2>Gerald (Gen <span id="gen">1</span>)</h2>
-    <div class="status-badge" id="status">Connecting...</div>
+    <h2 style="margin-top:0">Gerald (Gen <span id="gen">1</span>)</h2>
+    
+    <div class="status-row">
+      <span class="conn-status" id="conn-dot"></span>
+      <div class="status-badge status-connecting" id="status">Connecting...</div>
+    </div>
 
     <div class="pet-container" id="avatar-box">
-      <!-- Default SVG Cat -->
-      <svg viewBox="0 0 100 100" id="cat-svg">
+      <svg viewBox="0 0 100 100">
         <path d="M 25,35 L 15,10 L 40,25 Z" fill="#ffb74d"/>
         <path d="M 75,35 L 85,10 L 60,25 Z" fill="#ffb74d"/>
         <circle cx="50" cy="50" r="30" fill="#ffb74d"/>
@@ -153,17 +246,24 @@
     </div>
 
     <div class="btn-group">
-      <button onclick="doAction('feed')">🐟 Feed</button>
-      <button onclick="doAction('play')">🧶 Play</button>
+      <button onclick="doAction('feed')" id="btn-feed">🐟 Feed</button>
+      <button onclick="doAction('play')" id="btn-play">🧶 Play</button>
     </div>
 
-    <div id="log">--- Activity Log ---</div>
+    <div class="resurrection-timer" id="res-timer" style="display:none"></div>
+
+    <div id="log"><p style="margin:4px 0">--- Activity Log ---</p></div>
+    
+    <div class="stats" id="stats"></div>
   </div>
 
   <script>
-    const socket = io();
+    const socket = io({
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
 
-    // SVG Cat Variants
     const HAPPY_CAT = `
       <svg viewBox="0 0 100 100">
         <path d="M 25,35 L 15,10 L 40,25 Z" fill="#ffb74d"/>
@@ -195,9 +295,74 @@
         <text x="50" y="65" font-size="14" fill="#fff" text-anchor="middle" font-weight="bold">R.I.P.</text>
       </svg>`;
 
+    let geraldState = {};
+    let resurrectionTime = null;
+    let timerInterval = null;
+
+    function showToast(msg, type = 'error') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.background = type === 'error' ? '#ff5252' : '#4caf50';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function updateConnectionStatus(connected) {
+      const dot = document.getElementById('conn-dot');
+      dot.classList.toggle('conn-online', connected);
+      dot.classList.toggle('conn-offline', !connected);
+    }
+
+    function updateResurrectionTimer() {
+      const el = document.getElementById('res-timer');
+      if (!resurrectionTime || geraldState.status !== 'DEAD') {
+        el.style.display = 'none';
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        return;
+      }
+      
+      const diff = resurrectionTime - Date.now();
+      if (diff <= 0) {
+        el.style.display = 'none';
+        return;
+      }
+      
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      el.textContent = `New egg hatches in ${mins}m ${secs}s`;
+      el.style.display = 'block';
+    }
+
+    socket.on('connect', () => {
+      updateConnectionStatus(true);
+    });
+
+    socket.on('disconnect', () => {
+      updateConnectionStatus(false);
+      document.getElementById('status').textContent = 'Offline';
+      document.getElementById('status').className = 'status-badge status-connecting';
+    });
+
+    socket.on('connect_error', () => updateConnectionStatus(false));
+
     socket.on('stateUpdate', (data) => {
+      geraldState = data;
       document.getElementById('gen').innerText = data.generation;
-      document.getElementById('status').innerText = data.status;
+      
+      const statusEl = document.getElementById('status');
+      const avatarBox = document.getElementById('avatar-box');
+      
+      if (data.status === 'DEAD') {
+        statusEl.textContent = 'DEAD';
+        statusEl.className = 'status-badge status-dead';
+        avatarBox.classList.add('dead');
+        avatarBox.innerHTML = DEAD_CAT;
+      } else {
+        statusEl.textContent = 'ALIVE';
+        statusEl.className = 'status-badge status-alive';
+        avatarBox.classList.remove('dead');
+        avatarBox.innerHTML = data.hunger > 60 ? HUNGRY_CAT : HAPPY_CAT;
+      }
       
       document.getElementById('health-bar').style.width = data.health + '%';
       document.getElementById('hunger-bar').style.width = data.hunger + '%';
@@ -207,25 +372,40 @@
       document.getElementById('hunger-val').innerText = data.hunger + '%';
       document.getElementById('hap-val').innerText = data.happiness + '%';
 
-      const avatarBox = document.getElementById('avatar-box');
-
-      if (data.status === 'DEAD') {
-        avatarBox.innerHTML = DEAD_CAT;
-      } else if (data.hunger > 60) {
-        avatarBox.innerHTML = HUNGRY_CAT;
+      // Handle resurrection timer
+      if (data.resurrectsAt && data.status === 'DEAD') {
+        resurrectionTime = data.resurrectsAt;
+        if (!timerInterval) timerInterval = setInterval(updateResurrectionTimer, 1000);
+        updateResurrectionTimer();
       } else {
-        avatarBox.innerHTML = HAPPY_CAT;
+        resurrectionTime = null;
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        document.getElementById('res-timer').style.display = 'none';
+      }
+
+      // Disable buttons if dead
+      document.getElementById('btn-feed').disabled = data.status === 'DEAD';
+      document.getElementById('btn-play').disabled = data.status === 'DEAD';
+      
+      // Stats
+      if (data.stats) {
+        document.getElementById('stats').textContent = 
+          `${data.stats.feeds || 0} feeds · ${data.stats.plays || 0} plays · ${data.stats.deaths || 0} deaths`;
       }
     });
 
     socket.on('log', (msg) => {
       const logDiv = document.getElementById('log');
-      logDiv.innerHTML = `<p style="margin:4px 0">${msg}</p>` + logDiv.innerHTML;
+      const p = document.createElement('p');
+      p.style.margin = '4px 0';
+      p.textContent = msg;
+      logDiv.insertBefore(p, logDiv.firstChild);
+      while (logDiv.children.length > 20) {
+        logDiv.removeChild(logDiv.lastChild);
+      }
     });
 
-    socket.on('errorMsg', (msg) => {
-      alert(msg);
-    });
+    socket.on('errorMsg', (msg) => showToast(msg, 'error'));
 
     function doAction(type) {
       socket.emit('action', { type });
