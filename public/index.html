@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Internet's Pet</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: monospace; text-align: center; background: #111; color: #fff; padding: 20px; }
+    .pet { font-size: 50px; margin: 20px; }
+    .bar-container { width: 80%; max-width: 300px; height: 16px; background: #333; margin: 5px auto 15px auto; border-radius: 8px; overflow: hidden; }
+    .fill { height: 100%; transition: width 0.4s; }
+    #hunger-bar { background: #ff4444; }
+    #happiness-bar { background: #33b5e5; }
+    #health-bar { background: #00C851; }
+    button { background: #00ff66; border: none; padding: 12px 24px; font-weight: bold; font-family: monospace; cursor: pointer; border-radius: 6px; margin: 5px; }
+    #log { font-size: 12px; color: #aaa; margin-top: 20px; height: 60px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>GERALD (Gen <span id="gen">1</span>)</h1>
+  <div class="pet" id="avatar">( ° ͜ʖ ° )</div>
+  <p id="status">Connecting...</p>
+
+  <p>Health</p>
+  <div class="bar-container"><div id="health-bar" class="fill"></div></div>
+
+  <p>Hunger</p>
+  <div class="bar-container"><div id="hunger-bar" class="fill"></div></div>
+
+  <p>Happiness</p>
+  <div class="bar-container"><div id="happiness-bar" class="fill"></div></div>
+
+  <button onclick="doAction('feed')">🍎 Feed Gerald</button>
+  <button onclick="doAction('play')">🎾 Play with Gerald</button>
+
+  <div id="log">--- Activity Log ---</div>
+
+  <script>
+    const socket = io();
+
+    socket.on('stateUpdate', (data) => {
+      document.getElementById('gen').innerText = data.generation;
+      document.getElementById('status').innerText = 'Status: ' + data.status;
+      document.getElementById('health-bar').style.width = data.health + '%';
+      document.getElementById('hunger-bar').style.width = data.hunger + '%';
+      document.getElementById('happiness-bar').style.width = data.happiness + '%';
+
+      if (data.status === 'DEAD') {
+        document.getElementById('avatar').innerText = '🪦 (X_X)';
+      } else if (data.hunger > 70) {
+        document.getElementById('avatar').innerText = ' (⊙_⊙) ';
+      } else {
+        document.getElementById('avatar').innerText = ' ( ° ͜ʖ ° ) ';
+      }
+    });
+
+    socket.on('log', (msg) => {
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML = `<p>${msg}</p>` + logDiv.innerHTML;
+    });
+
+    socket.on('errorMsg', (msg) => {
+      alert(msg);
+    });
+
+    function doAction(type) {
+      socket.emit('action', { type });
+    }
+  </script>
+</body>
+</html>
