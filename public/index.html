@@ -3,413 +3,784 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Internet's Pet - Gerald</title>
+  <title>The Internet's Pet — Gerald</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * { box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-      text-align: center; 
-      background: #121218; 
-      color: #fff; 
-      padding: 20px; 
-      margin: 0;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d0d14;
+      color: #fff;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-    
-    .card {
-      background: #1e1e28;
-      border: 2px solid #2d2d3a;
-      border-radius: 16px;
-      padding: 24px;
-      max-width: 380px;
-      width: 100%;
-      margin: 10px auto;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      padding: 20px;
+      overflow-x: hidden;
     }
 
-    .pet-container {
-      width: 160px;
-      height: 160px;
-      margin: 0 auto 15px auto;
+    .layout {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .card {
+      background: #1a1a26;
+      border: 1px solid #2a2a3a;
+      border-radius: 24px;
+      padding: 28px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 260px;
+      flex-shrink: 0;
+    }
+
+    .panel-box {
+      background: #1a1a26;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      background: #2a2a38;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: #4ade80;
       border-radius: 50%;
-      border: 4px solid #3b3b4f;
-      transition: all 0.3s ease;
+      box-shadow: 0 0 6px #4ade80;
+      animation: pulse-dot 1.5s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
-    .pet-container.dead {
-      background: #1a1a24;
-      border-color: #444;
+    .header { text-align: center; margin-bottom: 8px; }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ff70a6, #ffca7a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-
-    .pet-container svg {
-      width: 120px;
-      height: 120px;
-    }
+    .sub { font-size: 12px; color: #666; margin-top: 2px; }
 
     .status-row {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    .status-alive { background: #2e7d32; color: #a5d6a7; }
-    .status-dead { background: #c62828; color: #ffcdd2; }
-    .status-connecting { background: #f9a825; color: #fffde7; }
-
-    .conn-status {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #666;
-      display: inline-block;
-    }
-    .conn-online { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
-    .conn-offline { background: #f44336; box-shadow: 0 0 6px #f44336; }
-
-    .bar-group {
-      text-align: left;
-      margin-bottom: 12px;
-    }
-
-    .bar-label {
-      font-size: 12px;
-      font-weight: bold;
-      color: #aaa;
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-
-    .bar-container { 
-      width: 100%; 
-      height: 12px; 
-      background: #111; 
-      border-radius: 6px; 
-      overflow: hidden; 
-    }
-
-    .fill { 
-      height: 100%; 
-      transition: width 0.4s ease; 
-    }
-
-    #health-bar { background: #ff5252; }
-    #hunger-bar { background: #ffb74d; }
-    #happiness-bar { background: #4fc3f7; }
-
-    .btn-group {
-      display: flex;
       gap: 10px;
-      margin-top: 20px;
+      margin: 14px 0;
     }
-
-    button { 
-      flex: 1;
-      background: #ff70a6; 
-      color: #fff;
-      border: none; 
-      padding: 14px; 
-      font-size: 15px;
-      font-weight: bold; 
-      cursor: pointer; 
-      border-radius: 10px; 
-      box-shadow: 0 4px 0 #d44d7d;
-      transition: all 0.1s;
-      touch-action: manipulation;
+    .conn-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #444; transition: 0.3s;
     }
-
-    button:active {
-      transform: translateY(3px);
-      box-shadow: 0 1px 0 #d44d7d;
-    }
-
-    button:disabled {
-      background: #555;
-      box-shadow: none;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    #toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: #ff5252;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 14px;
-      opacity: 0;
-      transition: all 0.3s ease;
-      z-index: 1000;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    #toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-
-    #log { 
-      font-size: 12px; 
-      color: #777; 
-      margin-top: 20px; 
-      height: 80px; 
-      overflow-y: auto; 
-      text-align: left;
-      padding: 8px;
-      background: #16161f;
-      border-radius: 8px;
-    }
+    .conn-online { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+    .conn-offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
     
-    #log p { margin: 4px 0; }
+    .badge {
+      font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-alive { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+    .badge-dead { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-egg { background: rgba(250,204,21,0.15); color: #facc15; border: 1px solid rgba(250,204,21,0.3); }
 
-    .resurrection-timer {
-      font-size: 14px;
-      color: #ff8a80;
-      margin-top: 10px;
-      font-weight: bold;
+    .pet-box {
+      width: 180px; height: 180px; margin: 10px auto 20px;
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .pet-box svg {
+      width: 160px; height: 160px;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
+      transition: all 0.4s ease;
+    }
+
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-5deg)} 75%{transform:rotate(5deg)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)rotate(-2deg)} 40%{transform:translateX(6px)rotate(2deg)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    @keyframes ghost { 0%,100%{transform:translateY(0)scale(1);opacity:0.85} 50%{transform:translateY(-15px)scale(1.05);opacity:0.6} }
+    @keyframes egg-wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-3deg)} 75%{transform:rotate(3deg)} }
+    @keyframes pulse-red { 0%,100%{filter:drop-shadow(0 0 0 transparent)} 50%{filter:drop-shadow(0 0 12px rgba(239,68,68,0.5))} }
+    @keyframes sick-shake { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-2px,2px)} 50%{transform:translate(2px,-2px)} 75%{transform:translate(-2px,-2px)} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+    .anim-float { animation: float 3s ease-in-out infinite; }
+    .anim-wiggle { animation: wiggle 0.6s ease-in-out; }
+    .anim-shake { animation: shake 0.5s ease-in-out; }
+    .anim-ghost { animation: ghost 4s ease-in-out infinite; }
+    .anim-egg { animation: egg-wiggle 2s ease-in-out infinite; }
+    .anim-sick { animation: sick-shake 2s ease-in-out infinite; }
+    .anim-danger { animation: pulse-red 1.5s ease-in-out infinite; }
+
+    .mood {
+      text-align: center; font-size: 13px; font-weight: 600; color: #888;
+      margin-bottom: 16px; min-height: 20px;
+    }
+
+    .bar-wrap { margin-bottom: 12px; }
+    .bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; font-weight: 700; color: #777;
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px;
+    }
+    .bar-track {
+      width: 100%; height: 10px; background: #111118; border-radius: 5px;
+      overflow: hidden; position: relative;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 5px;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1); position: relative;
+    }
+    .bar-fill::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    .fill-health { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .fill-fullness { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .fill-happiness { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+    .actions {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 20px;
+    }
+    .btn {
+      border: none; padding: 14px 8px; border-radius: 14px; font-size: 14px;
+      font-weight: 800; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      position: relative; overflow: hidden; touch-action: manipulation;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-feed { background: linear-gradient(135deg, #ff70a6, #ff4081); color: white; box-shadow: 0 4px 0 #c2185b; }
+    .btn-feed:active { box-shadow: 0 1px 0 #c2185b; transform: translateY(3px) scale(0.95); }
+    .btn-poison { background: linear-gradient(135deg, #4ade80, #22c55e); color: #064e3b; box-shadow: 0 4px 0 #15803d; }
+    .btn-poison:active { box-shadow: 0 1px 0 #15803d; transform: translateY(3px) scale(0.95); }
+    .btn-play { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: white; box-shadow: 0 4px 0 #1d4ed8; }
+    .btn-play:active { box-shadow: 0 1px 0 #1d4ed8; transform: translateY(3px) scale(0.95); }
+    .btn .emoji { font-size: 22px; }
+    .btn .label { font-size: 11px; letter-spacing: 0.5px; }
+
+    .res-timer {
+      text-align: center; font-size: 14px; color: #f87171;
+      font-weight: 700; margin-top: 12px; letter-spacing: 0.5px;
     }
 
     .stats {
-      font-size: 11px;
-      color: #666;
-      margin-top: 12px;
+      display: flex; justify-content: space-around;
+      margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2a3a;
+    }
+    .stat { text-align: center; }
+    .stat-num { font-size: 18px; font-weight: 800; color: #fff; }
+    .stat-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    .log {
+      margin-top: 18px; background: #111118; border-radius: 12px;
+      padding: 12px; max-height: 100px; overflow-y: auto;
+    }
+    .log-title {
+      font-size: 10px; font-weight: 800; color: #555;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .log-entry { font-size: 12px; color: #999; padding: 3px 0; border-bottom: 1px solid #1a1a24; animation: fadeIn 0.3s ease; }
+    .log-entry:last-child { border-bottom: none; }
+
+    /* Leaderboard */
+    .leaderboard-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; font-size: 13px; border-bottom: 1px solid #222;
+    }
+    .leaderboard-row:last-child { border-bottom: none; }
+    .lb-rank { width: 20px; font-weight: 800; color: #555; font-size: 12px; }
+    .lb-flag { font-size: 16px; }
+    .lb-country { flex: 1; font-weight: 600; color: #ccc; }
+    .lb-score { font-weight: 800; font-size: 12px; }
+    .lb-score.pos { color: #4ade80; }
+    .lb-score.neg { color: #ef4444; }
+    .lb-bar-track { width: 40px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
+    .lb-bar-fill { height: 100%; border-radius: 2px; background: #4ade80; }
+
+    .last-action {
+      font-size: 12px; color: #888; padding: 8px;
+      background: #111118; border-radius: 10px; text-align: center;
+    }
+    .last-action strong { color: #fff; }
+
+    /* Gerald Cam Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000; opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal {
+      background: #1a1a26; border: 1px solid #333; border-radius: 20px;
+      padding: 28px; max-width: 420px; width: 90%; text-align: center;
+      transform: scale(0.9); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal h2 {
+      font-size: 24px; margin-bottom: 4px;
+      background: linear-gradient(135deg, #ef4444, #f87171);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .modal-sub { color: #888; font-size: 14px; margin-bottom: 20px; }
+    .death-cert {
+      background: #111118; border-radius: 16px; padding: 20px;
+      margin-bottom: 20px; border: 1px solid #2a2a3a;
+    }
+    .death-gen { font-size: 48px; font-weight: 800; color: #fff; line-height: 1; }
+    .death-gen-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+    .death-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .ds { text-align: center; }
+    .ds-num { font-size: 20px; font-weight: 800; color: #fff; }
+    .ds-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .death-lived { font-size: 13px; color: #888; }
+    .tweet-box {
+      background: #0d0d14; border-radius: 10px; padding: 12px;
+      font-size: 13px; color: #aaa; text-align: left;
+      margin-bottom: 16px; border: 1px solid #222;
+      font-family: monospace; line-height: 1.5;
+    }
+    .modal-btn {
+      background: #1d9bf0; color: white; border: none;
+      padding: 12px 24px; border-radius: 24px; font-weight: 700;
+      font-size: 14px; cursor: pointer; width: 100%;
+      transition: all 0.2s;
+    }
+    .modal-btn:hover { background: #1a8cd8; }
+    .modal-close {
+      background: transparent; color: #666; border: 1px solid #333;
+      margin-top: 10px;
+    }
+    .modal-close:hover { color: #fff; border-color: #555; }
+
+    #toast {
+      position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%) translateY(-120px);
+      background: #1a1a26; border: 1px solid #333; color: #fff;
+      padding: 12px 24px; border-radius: 12px; font-weight: 700;
+      font-size: 13px; opacity: 0; transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.error { border-color: #ef4444; }
+    #toast.success { border-color: #4ade80; }
+
+    .particle {
+      position: fixed; pointer-events: none; font-size: 20px;
+      animation: particleFloat 1.2s ease-out forwards; z-index: 999;
+    }
+    @keyframes particleFloat {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
     }
 
-    @media (max-width: 400px) {
-      .card { padding: 16px; }
-      .pet-container { width: 140px; height: 140px; }
-      .pet-container svg { width: 100px; height: 100px; }
-      button { font-size: 14px; padding: 12px; }
+    .shake-screen { animation: shake 0.4s ease-in-out; }
+
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; align-items: center; }
+      .side-panel { width: 100%; max-width: 400px; }
+    }
+    @media (max-width: 420px) {
+      .card { padding: 20px; }
+      .pet-box { width: 150px; height: 150px; }
+      .pet-box svg { width: 130px; height: 130px; }
+      .btn { padding: 12px 6px; }
+      .btn .emoji { font-size: 18px; }
     }
   </style>
 </head>
 <body>
 
-  <div id="toast"></div>
+<div id="toast"></div>
 
-  <div class="card">
-    <h2 style="margin-top:0">Gerald (Gen <span id="gen">1</span>)</h2>
+<!-- Gerald Cam Modal -->
+<div class="modal-overlay" id="death-modal">
+  <div class="modal">
+    <h2>💀 Gerald Cam</h2>
+    <div class="modal-sub">Generation <span id="dm-gen">1</span> has fallen</div>
     
+    <div class="death-cert">
+      <div class="death-gen" id="dm-gen-big">1</div>
+      <div class="death-gen-label">Generation</div>
+      
+      <div class="death-stats">
+        <div class="ds">
+          <div class="ds-num" id="dm-feeds">0</div>
+          <div class="ds-label">Feeds</div>
+        </div>
+        <div class="ds">
+          <div class="ds-num" id="dm-poisons">0</div>
+          <div class="ds-label">Poisons</div>
+        </div>
+        <div class="ds">
+          <div class="ds-num" id="dm-plays">0</div>
+          <div class="ds-label">Plays</div>
+        </div>
+      </div>
+      
+      <div class="death-lived" id="dm-lived">Lived 42 minutes</div>
+    </div>
+    
+    <div class="tweet-box" id="tweet-text"></div>
+    
+    <button class="modal-btn" onclick="copyTweet()">📋 Copy Tweet</button>
+    <button class="modal-btn modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Main Card -->
+  <div class="card" id="main-card">
+    <div class="header">
+      <h1>Gerald <span style="font-size:14px;opacity:0.6">Gen <span id="gen">1</span></span></h1>
+      <div class="sub">The Internet's Pet · One page. One life. One community.</div>
+    </div>
+
     <div class="status-row">
-      <span class="conn-status" id="conn-dot"></span>
-      <div class="status-badge status-connecting" id="status">Connecting...</div>
+      <span class="conn-dot" id="conn-dot"></span>
+      <span class="badge badge-alive" id="status-badge">ALIVE</span>
+      <span style="font-size:11px;color:#555;" id="user-count">0 watching</span>
     </div>
 
-    <div class="pet-container" id="avatar-box">
-      <svg viewBox="0 0 100 100">
-        <path d="M 25,35 L 15,10 L 40,25 Z" fill="#ffb74d"/>
-        <path d="M 75,35 L 85,10 L 60,25 Z" fill="#ffb74d"/>
-        <circle cx="50" cy="50" r="30" fill="#ffb74d"/>
-        <circle cx="40" cy="45" r="4" fill="#000"/>
-        <circle cx="60" cy="45" r="4" fill="#000"/>
-        <polygon points="50,52 46,57 54,57" fill="#ff8a80"/>
-        <path d="M 44,60 Q 50,65 56,60" stroke="#000" stroke-width="2" fill="none"/>
-      </svg>
+    <div class="pet-box" id="pet-box"></div>
+
+    <div class="mood" id="mood">Gerald is vibing.</div>
+
+    <div class="bar-wrap">
+      <div class="bar-label"><span>Health</span><span id="health-val">100%</span></div>
+      <div class="bar-track"><div class="bar-fill fill-health" id="health-bar" style="width:100%"></div></div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-label"><span>Fullness</span><span id="fullness-val">100%</span></div>
+      <div class="bar-track"><div class="bar-fill fill-fullness" id="fullness-bar" style="width:100%"></div></div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-label"><span>Happiness</span><span id="hap-val">100%</span></div>
+      <div class="bar-track"><div class="bar-fill fill-happiness" id="happiness-bar" style="width:100%"></div></div>
     </div>
 
-    <div class="bar-group">
-      <div class="bar-label"><span>HEALTH</span><span id="health-val">100%</span></div>
-      <div class="bar-container"><div id="health-bar" class="fill"></div></div>
+    <div class="actions">
+      <button class="btn btn-feed" onclick="doAction('feed')" id="btn-feed">
+        <span class="emoji">🐟</span><span class="label">FEED</span>
+      </button>
+      <button class="btn btn-poison" onclick="doAction('poison')" id="btn-poison">
+        <span class="emoji">☠️</span><span class="label">POISON</span>
+      </button>
+      <button class="btn btn-play" onclick="doAction('play')" id="btn-play">
+        <span class="emoji">🧶</span><span class="label">PLAY</span>
+      </button>
     </div>
 
-    <div class="bar-group">
-      <div class="bar-label"><span>HUNGER</span><span id="hunger-val">0%</span></div>
-      <div class="bar-container"><div id="hunger-bar" class="fill"></div></div>
+    <div class="res-timer" id="res-timer" style="display:none"></div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="stat-feeds">0</div><div class="stat-label">Feeds</div></div>
+      <div class="stat"><div class="stat-num" id="stat-poisons">0</div><div class="stat-label">Poisons</div></div>
+      <div class="stat"><div class="stat-num" id="stat-plays">0</div><div class="stat-label">Plays</div></div>
+      <div class="stat"><div class="stat-num" id="stat-deaths">0</div><div class="stat-label">Deaths</div></div>
     </div>
 
-    <div class="bar-group">
-      <div class="bar-label"><span>HAPPINESS</span><span id="hap-val">100%</span></div>
-      <div class="bar-container"><div id="happiness-bar" class="fill"></div></div>
+    <div class="log" id="log">
+      <div class="log-title">Recent Activity</div>
     </div>
-
-    <div class="btn-group">
-      <button onclick="doAction('feed')" id="btn-feed">🐟 Feed</button>
-      <button onclick="doAction('play')" id="btn-play">🧶 Play</button>
-    </div>
-
-    <div class="resurrection-timer" id="res-timer" style="display:none"></div>
-
-    <div id="log"><p style="margin:4px 0">--- Activity Log ---</p></div>
-    
-    <div class="stats" id="stats"></div>
   </div>
 
-  <script>
-    const socket = io({
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
+  <!-- Side Panel -->
+  <div class="side-panel">
+    <div class="panel-box">
+      <div class="panel-title"><span class="live-dot"></span> Live Now</div>
+      <div class="last-action" id="last-action">Waiting for the first move...</div>
+    </div>
 
-    const HAPPY_CAT = `
-      <svg viewBox="0 0 100 100">
-        <path d="M 25,35 L 15,10 L 40,25 Z" fill="#ffb74d"/>
-        <path d="M 75,35 L 85,10 L 60,25 Z" fill="#ffb74d"/>
-        <circle cx="50" cy="50" r="30" fill="#ffb74d"/>
-        <circle cx="40" cy="45" r="4" fill="#000"/>
-        <circle cx="60" cy="45" r="4" fill="#000"/>
-        <polygon points="50,52 46,57 54,57" fill="#ff8a80"/>
-        <path d="M 42,59 Q 50,66 58,59" stroke="#000" stroke-width="2" fill="none"/>
-        <path d="M 20,50 L 5,48 M 20,53 L 5,55" stroke="#000" stroke-width="1.5"/>
-        <path d="M 80,50 L 95,48 M 80,53 L 95,55" stroke="#000" stroke-width="1.5"/>
-      </svg>`;
+    <div class="panel-box">
+      <div class="panel-title">🏆 Country Leaderboard</div>
+      <div id="leaderboard">
+        <div style="color:#555;font-size:12px;text-align:center;padding:10px;">No data yet. Be the first!</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    const HUNGRY_CAT = `
-      <svg viewBox="0 0 100 100">
-        <path d="M 25,35 L 15,10 L 40,25 Z" fill="#ffb74d"/>
-        <path d="M 75,35 L 85,10 L 60,25 Z" fill="#ffb74d"/>
-        <circle cx="50" cy="50" r="30" fill="#ffb74d"/>
-        <ellipse cx="40" cy="45" rx="5" ry="6" fill="#000"/>
-        <ellipse cx="60" cy="45" rx="5" ry="6" fill="#000"/>
-        <polygon points="50,52 46,57 54,57" fill="#ff8a80"/>
-        <path d="M 44,64 Q 50,58 56,64" stroke="#000" stroke-width="2" fill="none"/>
-      </svg>`;
+<script>
+const socket = io({ reconnection: true, reconnectionAttempts: 5 });
 
-    const DEAD_CAT = `
-      <svg viewBox="0 0 100 100">
-        <ellipse cx="50" cy="80" rx="35" ry="10" fill="#111"/>
-        <path d="M 30,90 L 70,90 L 65,40 Q 50,30 35,40 Z" fill="#78909c"/>
-        <text x="50" y="65" font-size="14" fill="#fff" text-anchor="middle" font-weight="bold">R.I.P.</text>
-      </svg>`;
+/* ─── Country Detection ─── */
+let userCountry = 'Unknown';
+(async () => {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    userCountry = data.country_code || 'Unknown';
+  } catch {
+    userCountry = 'Unknown';
+  }
+})();
 
-    let geraldState = {};
-    let resurrectionTime = null;
-    let timerInterval = null;
+/* ─── SVGs ─── */
+const SVGS = {
+  happy: `<svg viewBox="0 0 120 120" class="anim-float">
+    <defs><radialGradient id="bg" cx="50%" cy="40%"><stop offset="0%" stop-color="#FFCC80"/><stop offset="100%" stop-color="#FFB74D"/></radialGradient></defs>
+    <ellipse cx="60" cy="68" rx="44" ry="38" fill="url(#bg)"/>
+    <path d="M 22,38 L 12,12 L 42,26 Z" fill="#FFB74D"/><path d="M 98,38 L 108,12 L 78,26 Z" fill="#FFB74D"/>
+    <path d="M 25,35 L 18,18 L 38,28 Z" fill="#FF8A65"/><path d="M 95,35 L 102,18 L 82,28 Z" fill="#FF8A65"/>
+    <circle cx="44" cy="58" r="7" fill="#2d2d3a"/><circle cx="76" cy="58" r="7" fill="#2d2d3a"/>
+    <circle cx="46" cy="56" r="3" fill="#fff"/><circle cx="78" cy="56" r="3" fill="#fff"/>
+    <circle cx="34" cy="68" r="6" fill="#FF8A80" opacity="0.5"/><circle cx="86" cy="68" r="6" fill="#FF8A80" opacity="0.5"/>
+    <ellipse cx="60" cy="68" rx="4" ry="3" fill="#FF8A80"/>
+    <path d="M 52,76 Q 60,84 68,76" stroke="#2d2d3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="32" cy="98" rx="9" ry="6" fill="#FFB74D"/><ellipse cx="88" cy="98" rx="9" ry="6" fill="#FFB74D"/>
+    <path d="M 98,70 Q 115,55 110,35" stroke="#FFB74D" stroke-width="9" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  
+  hungry: `<svg viewBox="0 0 120 120">
+    <ellipse cx="60" cy="70" rx="44" ry="36" fill="#FFB74D"/>
+    <path d="M 22,40 L 12,14 L 42,28 Z" fill="#FFB74D"/><path d="M 98,40 L 108,14 L 78,28 Z" fill="#FFB74D"/>
+    <path d="M 25,37 L 18,20 L 38,30 Z" fill="#FF8A65"/><path d="M 95,37 L 102,20 L 82,30 Z" fill="#FF8A65"/>
+    <circle cx="44" cy="60" r="8" fill="#2d2d3a"/><circle cx="76" cy="60" r="8" fill="#2d2d3a"/>
+    <circle cx="42" cy="58" r="3" fill="#fff"/><circle cx="74" cy="58" r="3" fill="#fff"/>
+    <circle cx="36" cy="68" r="3" fill="#60a5fa" opacity="0.8"/><circle cx="34" cy="70" r="2" fill="#60a5fa" opacity="0.6"/>
+    <circle cx="32" cy="72" r="5" fill="#FF8A80" opacity="0.4"/><circle cx="88" cy="72" r="5" fill="#FF8A80" opacity="0.4"/>
+    <ellipse cx="60" cy="70" rx="4" ry="3" fill="#FF8A80"/>
+    <path d="M 52,82 Q 60,76 68,82" stroke="#2d2d3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="32" cy="100" rx="9" ry="6" fill="#FFB74D"/><ellipse cx="88" cy="100" rx="9" ry="6" fill="#FFB74D"/>
+    <path d="M 64,78 Q 66,88 64,94" stroke="#60a5fa" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+  </svg>`,
 
-    function showToast(msg, type = 'error') {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.style.background = type === 'error' ? '#ff5252' : '#4caf50';
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    }
+  sick: `<svg viewBox="0 0 120 120" class="anim-sick">
+    <ellipse cx="60" cy="68" rx="44" ry="38" fill="#C5E1A5"/>
+    <path d="M 22,38 L 12,12 L 42,26 Z" fill="#C5E1A5"/><path d="M 98,38 L 108,12 L 78,26 Z" fill="#C5E1A5"/>
+    <path d="M 25,35 L 18,18 L 38,28 Z" fill="#AED581"/><path d="M 95,35 L 102,18 L 82,28 Z" fill="#AED581"/>
+    <circle cx="44" cy="58" r="7" fill="#2d2d3a"/><circle cx="76" cy="58" r="7" fill="#2d2d3a"/>
+    <path d="M 41,55 Q 44,52 47,55 Q 44,58 41,55" stroke="#fff" stroke-width="1.5" fill="none"/>
+    <path d="M 73,55 Q 76,52 79,55 Q 76,58 73,55" stroke="#fff" stroke-width="1.5" fill="none"/>
+    <path d="M 28,48 Q 26,42 28,38" stroke="#60a5fa" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 92,48 Q 94,42 92,38" stroke="#60a5fa" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="60" cy="68" rx="4" ry="3" fill="#FF8A80"/>
+    <path d="M 50,78 Q 55,74 60,78 Q 65,82 70,78" stroke="#2d2d3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="32" cy="98" rx="9" ry="6" fill="#C5E1A5"/><ellipse cx="88" cy="98" rx="9" ry="6" fill="#C5E1A5"/>
+  </svg>`,
 
-    function updateConnectionStatus(connected) {
-      const dot = document.getElementById('conn-dot');
-      dot.classList.toggle('conn-online', connected);
-      dot.classList.toggle('conn-offline', !connected);
-    }
+  dead: `<svg viewBox="0 0 120 120" class="anim-ghost">
+    <ellipse cx="60" cy="80" rx="40" ry="10" fill="#111" opacity="0.5"/>
+    <path d="M 40,85 Q 35,50 60,35 Q 85,50 80,85 Q 75,80 70,85 Q 65,80 60,85 Q 55,80 50,85 Q 45,80 40,85 Z" fill="#E0E0E0" opacity="0.9"/>
+    <path d="M 35,45 L 28,25 L 48,38 Z" fill="#E0E0E0" opacity="0.9"/>
+    <path d="M 85,45 L 92,25 L 72,38 Z" fill="#E0E0E0" opacity="0.9"/>
+    <path d="M 38,55 L 46,63 M 46,55 L 38,63" stroke="#555" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 74,55 L 82,63 M 82,55 L 74,63" stroke="#555" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="60" cy="65" rx="3" ry="2" fill="#999"/>
+    <path d="M 55,72 Q 60,68 65,72" stroke="#999" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 80,75 Q 95,65 92,50" stroke="#E0E0E0" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.7"/>
+  </svg>`,
 
-    function updateResurrectionTimer() {
-      const el = document.getElementById('res-timer');
-      if (!resurrectionTime || geraldState.status !== 'DEAD') {
-        el.style.display = 'none';
-        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-        return;
-      }
-      
-      const diff = resurrectionTime - Date.now();
-      if (diff <= 0) {
-        el.style.display = 'none';
-        return;
-      }
-      
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      el.textContent = `New egg hatches in ${mins}m ${secs}s`;
-      el.style.display = 'block';
-    }
+  egg: `<svg viewBox="0 0 120 120" class="anim-egg">
+    <defs><radialGradient id="eg" cx="40%" cy="30%"><stop offset="0%" stop-color="#FFF8E1"/><stop offset="100%" stop-color="#FFE0B2"/></radialGradient></defs>
+    <ellipse cx="60" cy="68" rx="36" ry="46" fill="url(#eg)"/>
+    <circle cx="45" cy="50" r="2" fill="#D7CCC8" opacity="0.6"/>
+    <circle cx="75" cy="55" r="1.5" fill="#D7CCC8" opacity="0.6"/>
+    <circle cx="55" cy="90" r="2" fill="#D7CCC8" opacity="0.6"/>
+    <circle cx="70" cy="85" r="1.5" fill="#D7CCC8" opacity="0.6"/>
+    <path d="M 50,45 L 55,50 L 52,55" stroke="#8D6E63" stroke-width="1.5" fill="none"/>
+    <path d="M 70,48 L 65,53 L 68,58" stroke="#8D6E63" stroke-width="1.5" fill="none"/>
+    <circle cx="52" cy="62" r="3" fill="#2d2d3a"/><circle cx="68" cy="62" r="3" fill="#2d2d3a"/>
+    <ellipse cx="60" cy="68" rx="3" ry="2" fill="#FF8A80"/>
+  </svg>`
+};
 
-    socket.on('connect', () => {
-      updateConnectionStatus(true);
-    });
+/* ─── State ─── */
+let geraldState = {};
+let resTimerInterval = null;
+let lastDeathSnapshot = null;
 
-    socket.on('disconnect', () => {
-      updateConnectionStatus(false);
-      document.getElementById('status').textContent = 'Offline';
-      document.getElementById('status').className = 'status-badge status-connecting';
-    });
+function showToast(msg, type = 'error') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type === 'success' ? 'success' : 'error';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
 
-    socket.on('connect_error', () => updateConnectionStatus(false));
+function spawnParticles(type) {
+  const emojis = { feed: ['🐟','❤️','✨'], poison: ['☠️','💀','🟢'], play: ['🧶','⭐','🎉'] };
+  const list = emojis[type] || ['✨'];
+  const box = document.getElementById('pet-box').getBoundingClientRect();
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = list[Math.floor(Math.random() * list.length)];
+    p.style.left = (box.left + box.width/2 + (Math.random()-0.5)*80) + 'px';
+    p.style.top = (box.top + box.height/2 + (Math.random()-0.5)*40) + 'px';
+    p.style.animationDelay = (Math.random() * 0.3) + 's';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1400);
+  }
+}
 
-    socket.on('stateUpdate', (data) => {
-      geraldState = data;
-      document.getElementById('gen').innerText = data.generation;
-      
-      const statusEl = document.getElementById('status');
-      const avatarBox = document.getElementById('avatar-box');
-      
-      if (data.status === 'DEAD') {
-        statusEl.textContent = 'DEAD';
-        statusEl.className = 'status-badge status-dead';
-        avatarBox.classList.add('dead');
-        avatarBox.innerHTML = DEAD_CAT;
-      } else {
-        statusEl.textContent = 'ALIVE';
-        statusEl.className = 'status-badge status-alive';
-        avatarBox.classList.remove('dead');
-        avatarBox.innerHTML = data.hunger > 60 ? HUNGRY_CAT : HAPPY_CAT;
-      }
-      
-      document.getElementById('health-bar').style.width = data.health + '%';
-      document.getElementById('hunger-bar').style.width = data.hunger + '%';
-      document.getElementById('happiness-bar').style.width = data.happiness + '%';
+function getMood(data) {
+  if (data.status === 'DEAD') return 'Gerald has passed on...';
+  if (data.status === 'EGG') return 'Something is hatching...';
+  if (data.health < 30) return 'Gerald is fighting for his life!';
+  if (data.health < 50) return 'Gerald looks very sick...';
+  if (data.fullness < 20) return 'Gerald is starving!';
+  if (data.fullness < 40) return 'Gerald is getting hungry...';
+  if (data.happiness < 25) return 'Gerald is deeply sad.';
+  if (data.happiness < 45) return 'Gerald looks lonely.';
+  if (data.health > 90 && data.fullness > 80 && data.happiness > 80) return 'Gerald is absolutely thriving! ✨';
+  if (data.fullness > 80 && data.happiness > 70) return 'Gerald is happy and full.';
+  return 'Gerald is vibing.';
+}
 
-      document.getElementById('health-val').innerText = data.health + '%';
-      document.getElementById('hunger-val').innerText = data.hunger + '%';
-      document.getElementById('hap-val').innerText = data.happiness + '%';
+function renderAvatar(data) {
+  const box = document.getElementById('pet-box');
+  let svg = SVGS.happy;
+  if (data.status === 'DEAD') svg = SVGS.dead;
+  else if (data.status === 'EGG') svg = SVGS.egg;
+  else if (data.health < 50) svg = SVGS.sick;
+  else if (data.fullness < 35 || data.happiness < 35) svg = SVGS.hungry;
+  box.innerHTML = svg;
+  box.classList.toggle('anim-danger', data.status === 'ALIVE' && data.health < 30);
+}
 
-      // Handle resurrection timer
-      if (data.resurrectsAt && data.status === 'DEAD') {
-        resurrectionTime = data.resurrectsAt;
-        if (!timerInterval) timerInterval = setInterval(updateResurrectionTimer, 1000);
-        updateResurrectionTimer();
-      } else {
-        resurrectionTime = null;
-        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-        document.getElementById('res-timer').style.display = 'none';
-      }
+function updateConnectionStatus(on) {
+  const dot = document.getElementById('conn-dot');
+  dot.classList.toggle('conn-online', on);
+  dot.classList.toggle('conn-offline', !on);
+}
 
-      // Disable buttons if dead
-      document.getElementById('btn-feed').disabled = data.status === 'DEAD';
-      document.getElementById('btn-play').disabled = data.status === 'DEAD';
-      
-      // Stats
-      if (data.stats) {
-        document.getElementById('stats').textContent = 
-          `${data.stats.feeds || 0} feeds · ${data.stats.plays || 0} plays · ${data.stats.deaths || 0} deaths`;
-      }
-    });
+function updateResurrectionTimer() {
+  const el = document.getElementById('res-timer');
+  if (!geraldState.resurrectsAt || geraldState.status !== 'DEAD') {
+    el.style.display = 'none';
+    if (resTimerInterval) { clearInterval(resTimerInterval); resTimerInterval = null; }
+    return;
+  }
+  const diff = geraldState.resurrectsAt - Date.now();
+  if (diff <= 0) { el.style.display = 'none'; return; }
+  const mins = Math.floor(diff / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  el.textContent = `🥚 New egg hatches in ${mins}m ${secs.toString().padStart(2,'0')}s`;
+  el.style.display = 'block';
+}
 
-    socket.on('log', (msg) => {
-      const logDiv = document.getElementById('log');
-      const p = document.createElement('p');
-      p.style.margin = '4px 0';
-      p.textContent = msg;
-      logDiv.insertBefore(p, logDiv.firstChild);
-      while (logDiv.children.length > 20) {
-        logDiv.removeChild(logDiv.lastChild);
-      }
-    });
+function renderLeaderboard(countryStats) {
+  const container = document.getElementById('leaderboard');
+  if (!countryStats || Object.keys(countryStats).length === 0) {
+    container.innerHTML = '<div style="color:#555;font-size:12px;text-align:center;padding:10px;">No data yet. Be the first!</div>';
+    return;
+  }
+  
+  const entries = Object.entries(countryStats)
+    .map(([cc, data]) => ({ cc, ...data }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+  
+  const maxScore = Math.max(...entries.map(e => Math.abs(e.score)), 1);
+  
+  container.innerHTML = entries.map((e, i) => {
+    const flag = getFlag(e.cc);
+    const pct = (Math.abs(e.score) / maxScore) * 100;
+    const barColor = e.score >= 0 ? '#4ade80' : '#ef4444';
+    return `
+      <div class="leaderboard-row">
+        <div class="lb-rank">${i + 1}</div>
+        <div class="lb-flag">${flag}</div>
+        <div class="lb-country">${e.cc}</div>
+        <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="lb-score ${e.score >= 0 ? 'pos' : 'neg'}">${e.score > 0 ? '+' : ''}${e.score}</div>
+      </div>
+    `;
+  }).join('');
+}
 
-    socket.on('errorMsg', (msg) => showToast(msg, 'error'));
+function getFlag(cc) {
+  if (cc === 'Unknown') return '🌐';
+  // Convert country code to regional indicator symbols
+  const offset = 127397;
+  try {
+    return String.fromCodePoint(...cc.split('').map(c => c.charCodeAt(0) + offset));
+  } catch {
+    return '🌐';
+  }
+}
 
-    function doAction(type) {
-      socket.emit('action', { type });
-    }
-  </script>
+function renderLastAction(action) {
+  if (!action) return;
+  const labels = { feed: 'fed', poison: 'poisoned', play: 'played with' };
+  const emojis = { feed: '🐟', poison: '☠️', play: '🧶' };
+  const colors = { feed: '#4ade80', poison: '#ef4444', play: '#60a5fa' };
+  document.getElementById('last-action').innerHTML = 
+    `Last move: <strong style="color:${colors[action.type]}">${emojis[action.type]} Someone from ${action.country} ${labels[action.type]} Gerald</strong>`;
+}
+
+function showDeathModal(snapshot) {
+  lastDeathSnapshot = snapshot;
+  const livedMins = Math.floor((snapshot.diedAt - snapshot.bornAt) / 60000);
+  const livedText = livedMins < 1 ? 'Lived less than a minute' : `Lived ${livedMins} minute${livedMins !== 1 ? 's' : ''}`;
+  
+  document.getElementById('dm-gen').textContent = snapshot.generation;
+  document.getElementById('dm-gen-big').textContent = snapshot.generation;
+  document.getElementById('dm-feeds').textContent = snapshot.genStats.feeds || 0;
+  document.getElementById('dm-poisons').textContent = snapshot.genStats.poisons || 0;
+  document.getElementById('dm-plays').textContent = snapshot.genStats.plays || 0;
+  document.getElementById('dm-lived').textContent = livedText;
+  
+  const tweet = `💀 Gerald Cam: Generation ${snapshot.generation} has died.\n\n` +
+    `🐟 Feeds: ${snapshot.genStats.feeds || 0}\n` +
+    `☠️ Poisons: ${snapshot.genStats.poisons || 0}\n` +
+    `🧶 Plays: ${snapshot.genStats.plays || 0}\n` +
+    `⏱️ ${livedText}\n\n` +
+    `The internet couldn't keep him alive. Can you do better?\n` +
+    `${window.location.href}`;
+  
+  document.getElementById('tweet-text').textContent = tweet;
+  document.getElementById('death-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('death-modal').classList.remove('show');
+}
+
+function copyTweet() {
+  const text = document.getElementById('tweet-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Tweet copied! Go post it.', 'success');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Tweet copied! Go post it.', 'success');
+  });
+}
+
+function doAction(type) {
+  socket.emit('action', { type, country: userCountry });
+}
+
+/* ─── Socket Events ─── */
+socket.on('connect', () => updateConnectionStatus(true));
+socket.on('disconnect', () => {
+  updateConnectionStatus(false);
+  document.getElementById('status-badge').textContent = 'OFFLINE';
+  document.getElementById('status-badge').className = 'badge badge-egg';
+});
+socket.on('connect_error', () => updateConnectionStatus(false));
+
+socket.on('userCount', (count) => {
+  document.getElementById('user-count').textContent = `${count} watching`;
+});
+
+socket.on('stateUpdate', (data) => {
+  geraldState = data;
+  document.getElementById('gen').textContent = data.generation;
+  
+  const badge = document.getElementById('status-badge');
+  if (data.status === 'DEAD') { badge.textContent = 'DEAD'; badge.className = 'badge badge-dead'; }
+  else if (data.status === 'EGG') { badge.textContent = 'EGG'; badge.className = 'badge badge-egg'; }
+  else { badge.textContent = 'ALIVE'; badge.className = 'badge badge-alive'; }
+  
+  document.getElementById('mood').textContent = getMood(data);
+  renderAvatar(data);
+  
+  document.getElementById('health-bar').style.width = data.health + '%';
+  document.getElementById('fullness-bar').style.width = data.fullness + '%';
+  document.getElementById('happiness-bar').style.width = data.happiness + '%';
+  document.getElementById('health-val').textContent = Math.round(data.health) + '%';
+  document.getElementById('fullness-val').textContent = Math.round(data.fullness) + '%';
+  document.getElementById('hap-val').textContent = Math.round(data.happiness) + '%';
+  
+  const dead = data.status === 'DEAD' || data.status === 'EGG';
+  document.getElementById('btn-feed').disabled = dead;
+  document.getElementById('btn-poison').disabled = dead;
+  document.getElementById('btn-play').disabled = dead;
+  
+  if (data.stats) {
+    document.getElementById('stat-feeds').textContent = data.stats.feeds || 0;
+    document.getElementById('stat-poisons').textContent = data.stats.poisons || 0;
+    document.getElementById('stat-plays').textContent = data.stats.plays || 0;
+    document.getElementById('stat-deaths').textContent = data.stats.deaths || 0;
+  }
+  
+  if (data.countryStats) renderLeaderboard(data.countryStats);
+  
+  if (data.resurrectsAt && data.status === 'DEAD') {
+    if (!resTimerInterval) resTimerInterval = setInterval(updateResurrectionTimer, 1000);
+    updateResurrectionTimer();
+  } else {
+    if (resTimerInterval) { clearInterval(resTimerInterval); resTimerInterval = null; }
+    document.getElementById('res-timer').style.display = 'none';
+  }
+});
+
+socket.on('log', (msg) => {
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.textContent = msg;
+  log.appendChild(entry);
+  while (log.children.length > 15) log.removeChild(log.children[1]);
+  log.scrollTop = log.scrollHeight;
+});
+
+socket.on('errorMsg', (msg) => showToast(msg, 'error'));
+
+socket.on('actionEffect', ({ type }) => {
+  spawnParticles(type);
+  const box = document.getElementById('pet-box');
+  if (type === 'poison') {
+    document.getElementById('main-card').classList.remove('shake-screen');
+    void document.getElementById('main-card').offsetWidth;
+    document.getElementById('main-card').classList.add('shake-screen');
+  } else {
+    box.classList.remove('anim-wiggle');
+    void box.offsetWidth;
+    box.classList.add('anim-wiggle');
+  }
+});
+
+socket.on('lastAction', (action) => renderLastAction(action));
+
+socket.on('deathSnapshot', (snapshot) => {
+  showDeathModal(snapshot);
+});
+
+// Close modal on overlay click
+document.getElementById('death-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('death-modal')) closeModal();
+});
+</script>
+
 </body>
 </html>
