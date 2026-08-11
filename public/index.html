@@ -212,7 +212,6 @@
     .log-entry { font-size: 12px; color: #999; padding: 3px 0; border-bottom: 1px solid #1a1a24; animation: fadeIn 0.3s ease; }
     .log-entry:last-child { border-bottom: none; }
 
-    /* Leaderboard */
     .leaderboard-row {
       display: flex; align-items: center; gap: 8px;
       padding: 6px 0; font-size: 13px; border-bottom: 1px solid #222;
@@ -233,7 +232,6 @@
     }
     .last-action strong { color: #fff; }
 
-    /* Gerald Cam Modal */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.85);
       display: flex; align-items: center; justify-content: center;
@@ -323,7 +321,6 @@
 
 <div id="toast"></div>
 
-<!-- Gerald Cam Modal -->
 <div class="modal-overlay" id="death-modal">
   <div class="modal">
     <h2>💀 Gerald Cam</h2>
@@ -359,7 +356,6 @@
 </div>
 
 <div class="layout">
-  <!-- Main Card -->
   <div class="card" id="main-card">
     <div class="header">
       <h1>Gerald <span style="font-size:14px;opacity:0.6">Gen <span id="gen">1</span></span></h1>
@@ -415,7 +411,6 @@
     </div>
   </div>
 
-  <!-- Side Panel -->
   <div class="side-panel">
     <div class="panel-box">
       <div class="panel-title"><span class="live-dot"></span> Live Now</div>
@@ -434,17 +429,17 @@
 <script>
 const socket = io({ reconnection: true, reconnectionAttempts: 5 });
 
-/* ─── Country Detection ─── */
-let userCountry = 'Unknown';
-(async () => {
-  try {
-    const res = await fetch('https://ipapi.co/json/');
-    const data = await res.json();
-    userCountry = data.country_code || 'Unknown';
-  } catch {
-    userCountry = 'Unknown';
-  }
-})();
+/* ─── Country Detection (CACHED) ─── */
+let userCountry = localStorage.getItem('gerald-country');
+if (!userCountry) {
+  fetch('https://ipapi.co/json/')
+    .then(r => r.json())
+    .then(d => {
+      userCountry = d.country_code || 'Unknown';
+      localStorage.setItem('gerald-country', userCountry);
+    })
+    .catch(() => { userCountry = 'Unknown'; });
+}
 
 /* ─── SVGs ─── */
 const SVGS = {
@@ -623,7 +618,6 @@ function renderLeaderboard(countryStats) {
 
 function getFlag(cc) {
   if (cc === 'Unknown') return '🌐';
-  // Convert country code to regional indicator symbols
   const offset = 127397;
   try {
     return String.fromCodePoint(...cc.split('').map(c => c.charCodeAt(0) + offset));
@@ -674,7 +668,6 @@ function copyTweet() {
   navigator.clipboard.writeText(text).then(() => {
     showToast('Tweet copied! Go post it.', 'success');
   }).catch(() => {
-    // Fallback
     const ta = document.createElement('textarea');
     ta.value = text;
     document.body.appendChild(ta);
@@ -776,7 +769,6 @@ socket.on('deathSnapshot', (snapshot) => {
   showDeathModal(snapshot);
 });
 
-// Close modal on overlay click
 document.getElementById('death-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('death-modal')) closeModal();
 });
