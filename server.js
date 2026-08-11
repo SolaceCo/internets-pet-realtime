@@ -87,6 +87,9 @@ function resurrectGerald(prevGen, prevStats, prevCountries, prevDeaths) {
 const cooldowns = new Map();
 const COOLDOWN_MS = 30 * 60 * 1000;
 
+// ─── Abuse throttle store ───
+const actionThrottles = new Map();
+
 function getClientIp(socket) {
   const forwarded = socket.handshake.headers['x-forwarded-for'];
   if (forwarded) return forwarded.split(',')[0].trim();
@@ -208,7 +211,10 @@ io.on('connection', (socket) => {
       return socket.emit('errorMsg', `Wait ${mins} minute${mins !== 1 ? 's' : ''}.`);
     }
 
-    const cc = (country || 'Unknown').toUpperCase();
+    // ─── XSS FIX: Validate country code ───
+    let cc = (country || 'Unknown').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc)) cc = 'Unknown';
+    // ─── END XSS FIX ───
     
     if (!gerald.countryStats[cc]) gerald.countryStats[cc] = { feeds: 0, poisons: 0, plays: 0, score: 0 };
     gerald.countryStats[cc][type === 'feed' ? 'feeds' : type === 'poison' ? 'poisons' : 'plays']++;
@@ -259,9 +265,6 @@ io.on('connection', (socket) => {
     io.emit('lastAction', gerald.lastAction);
   });
 });
-
-// ─── Abuse throttle store ───
-const actionThrottles = new Map();
 
 // ─── Shutdown ───
 async function shutdown() {
