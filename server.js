@@ -134,6 +134,12 @@ setInterval(() => {
     }
 
     if (gerald.health <= 0 && gerald.status !== 'DEAD') {
+      // ─── FIX: Zero out all bars on death ───
+      gerald.health = 0;
+      gerald.fullness = 0;
+      gerald.happiness = 0;
+      // ─── END FIX ───
+      
       gerald.status = 'DEAD';
       gerald.diedAt = Date.now();
       gerald.resurrectsAt = gerald.diedAt + (15 * 60 * 1000);
@@ -192,7 +198,6 @@ io.on('connection', (socket) => {
     const windowStart = now - 60000;
     const throttleKey = `${clientIp}:${Math.floor(now / 60000)}`;
     
-    // Clean old throttle entries
     for (const [k, v] of actionThrottles) {
       if (v.time < windowStart) actionThrottles.delete(k);
     }
