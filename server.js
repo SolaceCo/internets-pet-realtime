@@ -41,7 +41,7 @@ async function loadState() {
     
     if (saved.status === 'DEAD' && saved.diedAt) {
       const DEAD_FOR = Date.now() - saved.diedAt;
-      const RESURRECTION_TIME = 15 * 60 * 1000;
+      const RESURRECTION_TIME = 2 * 60 * 1000;
       
       if (DEAD_FOR >= RESURRECTION_TIME) {
         resurrectGerald(saved.generation, saved.stats, saved.countryStats, saved.deathHistory);
