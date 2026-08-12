@@ -1,440 +1,1102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Internet's Pet — Gerald the Cat</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0d0d14;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow-x: hidden;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerald Cam — The Internet's Cat</title>
+<script src="/socket.io/socket.io.js"></script>
 
-    .layout {
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-      max-width: 900px;
-      width: 100%;
-    }
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-    .card {
-      background: #1a1a26;
-      border: 1px solid #2a2a3a;
-      border-radius: 24px;
-      padding: 28px;
-      max-width: 400px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-      position: relative;
-      flex-shrink: 0;
-    }
+:root {
+  --bg: #08090d;
+  --panel: #11131a;
+  --panel-2: #151822;
+  --border: #242936;
+  --text: #f5f7fb;
+  --muted: #747b8c;
+  --pink: #ff5c9a;
+  --pink-dark: #d92e70;
+  --green: #45df91;
+  --red: #ff5263;
+  --blue: #5d9cff;
+  --yellow: #ffc857;
+}
 
-    .side-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      width: 260px;
-      flex-shrink: 0;
-    }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255,92,154,.12), transparent 35%),
+    var(--bg);
+  color: var(--text);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  padding: 28px 18px;
+}
 
-    .panel-box {
-      background: #1a1a26;
-      border: 1px solid #2a2a3a;
-      border-radius: 16px;
-      padding: 16px;
-    }
+/* ─────────────────────────
+   APP
+───────────────────────── */
 
-    .panel-title {
-      font-size: 11px;
-      font-weight: 800;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+.app {
+  width: min(1080px, 100%);
+  margin: auto;
+}
 
-    .live-dot {
-      width: 6px;
-      height: 6px;
-      background: #4ade80;
-      border-radius: 50%;
-      box-shadow: 0 0 6px #4ade80;
-      animation: pulse-dot 1.5s infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
 
-    .header { text-align: center; margin-bottom: 8px; }
-    .header h1 {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #ff70a6, #ffca7a);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .sub { font-size: 12px; color: #666; margin-top: 2px; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-    .status-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin: 14px 0;
-    }
-    .conn-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: #444; transition: 0.3s;
-    }
-    .conn-online { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
-    .conn-offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-    
-    .badge {
-      font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .badge-alive { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
-    .badge-dead { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-    .badge-egg { background: rgba(250,204,21,0.15); color: #facc15; border: 1px solid rgba(250,204,21,0.3); }
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ff5c9a, #ff9b70);
+  font-size: 21px;
+  box-shadow: 0 8px 25px rgba(255,92,154,.2);
+}
 
-    .pet-box {
-      width: 200px; height: 200px; margin: 10px auto 20px;
-      display: flex; align-items: center; justify-content: center; position: relative;
-    }
-    .pet-box svg {
-      width: 190px; height: 190px;
-      filter: drop-shadow(0 12px 24px rgba(0,0,0,0.5));
-      transition: all 0.4s ease;
-    }
+.brand-text strong {
+  display: block;
+  font-size: 15px;
+}
 
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-    @keyframes wiggle { 0%,100%{transform:rotate(0) scale(1)} 25%{transform:rotate(-8deg) scale(1.08)} 75%{transform:rotate(8deg) scale(1.08)} }
-    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)rotate(-3deg)} 40%{transform:translateX(7px)rotate(3deg)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
-    @keyframes ghost { 0%,100%{transform:translateY(0)scale(1);opacity:0.9} 50%{transform:translateY(-18px)scale(1.05);opacity:0.65} }
-    @keyframes egg-wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-5deg)} 75%{transform:rotate(5deg)} }
-    @keyframes pulse-red { 0%,100%{filter:drop-shadow(0 0 0 transparent)} 50%{filter:drop-shadow(0 0 18px rgba(239,68,68,0.7))} }
-    @keyframes sick-shake { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-3px,3px)} 50%{transform:translate(3px,-3px)} 75%{transform:translate(-3px,-3px)} }
-    @keyframes tail-sway { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(12deg)} }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes blink { 0%,90%,100%{transform:scaleY(1)} 95%{transform:scaleY(0.1)} }
+.brand-text span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 1px;
+}
 
-    .anim-float { animation: float 3s ease-in-out infinite; }
-    .anim-wiggle { animation: wiggle 0.6s ease-in-out; }
-    .anim-shake { animation: shake 0.5s ease-in-out; }
-    .anim-ghost { animation: ghost 4s ease-in-out infinite; }
-    .anim-egg { animation: egg-wiggle 2.5s ease-in-out infinite; }
-    .anim-sick { animation: sick-shake 2.5s ease-in-out infinite; }
-    .anim-danger { animation: pulse-red 1.5s ease-in-out infinite; }
-    .anim-blink { animation: blink 4s infinite; transform-origin: center 60px; }
-    .anim-tail { animation: tail-sway 2s ease-in-out infinite; transform-origin: 88px 80px; }
+.live-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
 
-    .mood {
-      text-align: center; font-size: 13px; font-weight: 600; color: #888;
-      margin-bottom: 16px; min-height: 20px;
-    }
+.live-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(69,223,145,.8);
+  animation: pulse 1.7s infinite;
+}
 
-    .bar-wrap { margin-bottom: 12px; }
-    .bar-label {
-      display: flex; justify-content: space-between;
-      font-size: 11px; font-weight: 700; color: #777;
-      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px;
-    }
-    .bar-track {
-      width: 100%; height: 10px; background: #111118; border-radius: 5px;
-      overflow: hidden; position: relative;
-    }
-    .bar-fill {
-      height: 100%; border-radius: 5px;
-      transition: width 0.5s cubic-bezier(0.4,0,0.2,1); position: relative;
-    }
-    .bar-fill::after {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-      animation: shimmer 2s infinite;
-    }
-    @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-    .fill-health { background: linear-gradient(90deg, #ef4444, #f87171); }
-    .fill-fullness { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-    .fill-happiness { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: .35; }
+}
 
-    .actions {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 20px;
-    }
-    .btn {
-      border: none; padding: 14px 8px; border-radius: 14px; font-size: 14px;
-      font-weight: 800; cursor: pointer; transition: all 0.15s;
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      position: relative; overflow: hidden; touch-action: manipulation;
-    }
-    .btn:active { transform: scale(0.95); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .btn-feed { background: linear-gradient(135deg, #ff70a6, #ff4081); color: white; box-shadow: 0 4px 0 #c2185b; }
-    .btn-feed:active { box-shadow: 0 1px 0 #c2185b; transform: translateY(3px) scale(0.95); }
-    .btn-poison { background: linear-gradient(135deg, #4ade80, #22c55e); color: #064e3b; box-shadow: 0 4px 0 #15803d; }
-    .btn-poison:active { box-shadow: 0 1px 0 #15803d; transform: translateY(3px) scale(0.95); }
-    .btn-play { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: white; box-shadow: 0 4px 0 #1d4ed8; }
-    .btn-play:active { box-shadow: 0 1px 0 #1d4ed8; transform: translateY(3px) scale(0.95); }
-    .btn .emoji { font-size: 22px; }
-    .btn .label { font-size: 11px; letter-spacing: 0.5px; }
+/* ─────────────────────────
+   GRID
+───────────────────────── */
 
-    .res-timer {
-      text-align: center; font-size: 14px; color: #f87171;
-      font-weight: 700; margin-top: 12px; letter-spacing: 0.5px;
-    }
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 18px;
+}
 
-    .stats {
-      display: flex; justify-content: space-around;
-      margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2a3a;
-    }
-    .stat { text-align: center; }
-    .stat-num { font-size: 18px; font-weight: 800; color: #fff; }
-    .stat-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.card {
+  background: linear-gradient(180deg, #13151d, #0f1117);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.45),
+    inset 0 1px rgba(255,255,255,.025);
+}
 
-    .log {
-      margin-top: 18px; background: #111118; border-radius: 12px;
-      padding: 12px; max-height: 100px; overflow-y: auto;
-    }
-    .log-title {
-      font-size: 10px; font-weight: 800; color: #555;
-      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
-    }
-    .log-entry { font-size: 12px; color: #999; padding: 3px 0; border-bottom: 1px solid #1a1a24; animation: fadeIn 0.3s ease; }
-    .log-entry:last-child { border-bottom: none; }
+/* ─────────────────────────
+   MAIN HEADER
+───────────────────────── */
 
-    .leaderboard-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 0; font-size: 13px; border-bottom: 1px solid #222;
-    }
-    .leaderboard-row:last-child { border-bottom: none; }
-    .lb-rank { width: 20px; font-weight: 800; color: #555; font-size: 12px; }
-    .lb-flag { font-size: 16px; }
-    .lb-country { flex: 1; font-weight: 600; color: #ccc; }
-    .lb-score { font-weight: 800; font-size: 12px; }
-    .lb-score.pos { color: #4ade80; }
-    .lb-score.neg { color: #ef4444; }
-    .lb-bar-track { width: 40px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
-    .lb-bar-fill { height: 100%; border-radius: 2px; background: #4ade80; }
+.main-header {
+  padding: 24px 26px 0;
+  text-align: center;
+}
 
-    .last-action {
-      font-size: 12px; color: #888; padding: 8px;
-      background: #111118; border-radius: 10px; text-align: center;
-    }
-    .last-action strong { color: #fff; }
+.main-header h1 {
+  font-size: clamp(25px, 5vw, 34px);
+  letter-spacing: -1.5px;
+  font-weight: 900;
+}
 
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 2000; opacity: 0; pointer-events: none;
-      transition: opacity 0.4s ease;
-    }
-    .modal-overlay.show { opacity: 1; pointer-events: all; }
-    .modal {
-      background: #1a1a26; border: 1px solid #333; border-radius: 20px;
-      padding: 28px; max-width: 420px; width: 90%; text-align: center;
-      transform: scale(0.9); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    .modal-overlay.show .modal { transform: scale(1); }
-    .modal h2 {
-      font-size: 24px; margin-bottom: 4px;
-      background: linear-gradient(135deg, #ef4444, #f87171);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .modal-sub { color: #888; font-size: 14px; margin-bottom: 20px; }
-    .death-cert {
-      background: #111118; border-radius: 16px; padding: 20px;
-      margin-bottom: 20px; border: 1px solid #2a2a3a;
-    }
-    .death-gen { font-size: 48px; font-weight: 800; color: #fff; line-height: 1; }
-    .death-gen-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
-    .death-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    .ds { text-align: center; }
-    .ds-num { font-size: 20px; font-weight: 800; color: #fff; }
-    .ds-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-    .death-lived { font-size: 13px; color: #888; }
-    .tweet-box {
-      background: #0d0d14; border-radius: 10px; padding: 12px;
-      font-size: 13px; color: #aaa; text-align: left;
-      margin-bottom: 16px; border: 1px solid #222;
-      font-family: monospace; line-height: 1.5;
-    }
-    .modal-btn {
-      background: #1d9bf0; color: white; border: none;
-      padding: 12px 24px; border-radius: 24px; font-weight: 700;
-      font-size: 14px; cursor: pointer; width: 100%;
-      transition: all 0.2s;
-    }
-    .modal-btn:hover { background: #1a8cd8; }
-    .modal-close {
-      background: transparent; color: #666; border: 1px solid #333;
-      margin-top: 10px;
-    }
-    .modal-close:hover { color: #fff; border-color: #555; }
+.main-header h1 span {
+  color: var(--pink);
+}
 
-    #toast {
-      position: fixed; top: 20px; left: 50%;
-      transform: translateX(-50%) translateY(-120px);
-      background: #1a1a26; border: 1px solid #333; color: #fff;
-      padding: 12px 24px; border-radius: 12px; font-weight: 700;
-      font-size: 13px; opacity: 0; transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
-      z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    #toast.error { border-color: #ef4444; }
-    #toast.success { border-color: #4ade80; }
+.subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+}
 
-    .particle {
-      position: fixed; pointer-events: none; font-size: 20px;
-      animation: particleFloat 1.2s ease-out forwards; z-index: 999;
-    }
-    @keyframes particleFloat {
-      0% { opacity: 1; transform: translateY(0) scale(1); }
-      100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
-    }
+.status-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+}
 
-    .shake-screen { animation: shake 0.4s ease-in-out; }
+.status-badge {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  background: rgba(69,223,145,.1);
+  color: var(--green);
+  border: 1px solid rgba(69,223,145,.2);
+}
 
-    @media (max-width: 768px) {
-      .layout { flex-direction: column; align-items: center; }
-      .side-panel { width: 100%; max-width: 400px; }
-    }
-    @media (max-width: 420px) {
-      .card { padding: 20px; }
-      .pet-box { width: 170px; height: 170px; }
-      .pet-box svg { width: 160px; height: 160px; }
-      .btn { padding: 12px 6px; }
-      .btn .emoji { font-size: 18px; }
-    }
-  </style>
+.status-badge.dead {
+  color: var(--red);
+  background: rgba(255,82,99,.1);
+  border-color: rgba(255,82,99,.2);
+}
+
+.status-badge.egg {
+  color: var(--yellow);
+  background: rgba(255,200,87,.1);
+  border-color: rgba(255,200,87,.2);
+}
+
+.watchers {
+  color: #5d6472;
+  font-size: 11px;
+}
+
+/* ─────────────────────────
+   GERALD STAGE
+───────────────────────── */
+
+.gerald-stage {
+  position: relative;
+  height: 330px;
+  margin: 10px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.035), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.1));
+}
+
+.stage-glow {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: rgba(255,180,100,.07);
+  filter: blur(35px);
+}
+
+#pet-box {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+#pet-box svg {
+  width: 245px;
+  height: 245px;
+  overflow: visible;
+  filter:
+    drop-shadow(0 25px 22px rgba(0,0,0,.4))
+    drop-shadow(0 0 22px rgba(255,170,100,.08));
+}
+
+/* Better cat animation */
+
+.cat-float {
+  animation: catFloat 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.cat-wiggle {
+  animation: catWiggle .55s ease-in-out;
+}
+
+.cat-shake {
+  animation: catShake .5s ease-in-out;
+}
+
+@keyframes catFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes catWiggle {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(-6deg) scale(1.04); }
+  75% { transform: rotate(6deg) scale(1.04); }
+}
+
+@keyframes catShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-8px) rotate(-2deg); }
+  40% { transform: translateX(8px) rotate(2deg); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.floating-heart {
+  position: absolute;
+  font-size: 16px;
+  opacity: .55;
+  animation: floatHeart 4s ease-in-out infinite;
+}
+
+.heart-1 { left: 25%; top: 24%; }
+.heart-2 { right: 25%; top: 35%; animation-delay: 1.4s; }
+
+@keyframes floatHeart {
+  0%,100% { transform: translateY(8px); opacity: .25; }
+  50% { transform: translateY(-8px); opacity: .7; }
+}
+
+/* ─────────────────────────
+   MOOD
+───────────────────────── */
+
+.mood {
+  text-align: center;
+  min-height: 22px;
+  padding: 0 20px 15px;
+  color: #a1a7b5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ─────────────────────────
+   BARS
+───────────────────────── */
+
+.vitals {
+  padding: 0 26px;
+}
+
+.vital {
+  margin-bottom: 14px;
+}
+
+.vital-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #737a89;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+}
+
+.vital-value {
+  color: #d9dde6;
+}
+
+.track {
+  height: 8px;
+  background: #080a0f;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width .5s ease;
+  position: relative;
+}
+
+.fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.18),
+    transparent
+  );
+  animation: shimmer 2.2s linear infinite;
+}
+
+.health { background: linear-gradient(90deg,#ff4757,#ff7a84); }
+.fullness { background: linear-gradient(90deg,#ff9f43,#ffc857); }
+.happiness { background: linear-gradient(90deg,#4f8cff,#72a9ff); }
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* ─────────────────────────
+   ACTIONS
+───────────────────────── */
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 9px;
+  padding: 8px 26px 22px;
+}
+
+.action {
+  border: 1px solid transparent;
+  border-radius: 15px;
+  padding: 13px 8px;
+  cursor: pointer;
+  color: white;
+  font-weight: 900;
+  transition: transform .15s, filter .15s, opacity .15s;
+  touch-action: manipulation;
+}
+
+.action:hover {
+  filter: brightness(1.08);
+}
+
+.action:active {
+  transform: scale(.96);
+}
+
+.action:disabled {
+  opacity: .28;
+  cursor: not-allowed;
+}
+
+.action-icon {
+  display: block;
+  font-size: 21px;
+  margin-bottom: 4px;
+}
+
+.action-name {
+  font-size: 10px;
+  letter-spacing: .8px;
+}
+
+.feed {
+  background: linear-gradient(135deg,#ff5797,#e83d7d);
+  box-shadow: 0 5px 18px rgba(255,87,151,.13);
+}
+
+.poison {
+  background: linear-gradient(135deg,#35ce82,#1da963);
+  color: #052d1c;
+  box-shadow: 0 5px 18px rgba(53,206,130,.1);
+}
+
+.play {
+  background: linear-gradient(135deg,#609cff,#407ce6);
+  box-shadow: 0 5px 18px rgba(96,156,255,.12);
+}
+
+/* ─────────────────────────
+   STATS
+───────────────────────── */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,.12);
+}
+
+.stat {
+  text-align: center;
+  padding: 15px 4px;
+  border-right: 1px solid var(--border);
+}
+
+.stat:last-child {
+  border-right: 0;
+}
+
+.stat-number {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.stat-label {
+  margin-top: 3px;
+  color: #606777;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+}
+
+/* ─────────────────────────
+   SIDEBAR
+───────────────────────── */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.panel {
+  background: #11131a;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #737a89;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 13px;
+}
+
+.last-action {
+  border-radius: 13px;
+  background: #0a0c11;
+  border: 1px solid #1d212b;
+  padding: 13px;
+  text-align: center;
+  color: #777e8c;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.last-action strong {
+  color: white;
+}
+
+/* ─────────────────────────
+   LEADERBOARD
+───────────────────────── */
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid #1c2029;
+}
+
+.lb-row:last-child {
+  border-bottom: 0;
+}
+
+.lb-rank {
+  width: 18px;
+  color: #555c6b;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.lb-flag {
+  font-size: 16px;
+}
+
+.lb-country {
+  flex: 1;
+  color: #cbd0da;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lb-score {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.lb-score.pos { color: var(--green); }
+.lb-score.neg { color: var(--red); }
+
+/* ─────────────────────────
+   ACTIVITY
+───────────────────────── */
+
+.activity {
+  max-height: 205px;
+  overflow-y: auto;
+}
+
+.activity::-webkit-scrollbar {
+  width: 3px;
+}
+
+.activity::-webkit-scrollbar-thumb {
+  background: #303542;
+  border-radius: 4px;
+}
+
+.activity-entry {
+  padding: 7px 0;
+  color: #777e8d;
+  border-bottom: 1px solid #1b1e26;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.activity-entry:last-child {
+  border: 0;
+}
+
+/* ─────────────────────────
+   RESURRECTION
+───────────────────────── */
+
+.resurrection {
+  text-align: center;
+  padding: 11px;
+  margin: 0 26px 20px;
+  border-radius: 13px;
+  background: rgba(255,200,87,.07);
+  border: 1px solid rgba(255,200,87,.16);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ─────────────────────────
+   MODAL
+───────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3,4,7,.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+  z-index: 100;
+}
+
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  width: min(410px,100%);
+  background: #13151d;
+  border: 1px solid #2a2e39;
+  border-radius: 24px;
+  padding: 25px;
+  text-align: center;
+  transform: translateY(15px) scale(.97);
+  transition: transform .3s;
+}
+
+.overlay.show .modal {
+  transform: translateY(0) scale(1);
+}
+
+.modal-cat {
+  font-size: 45px;
+  margin-bottom: 7px;
+}
+
+.modal h2 {
+  font-size: 23px;
+  letter-spacing: -.7px;
+}
+
+.modal-sub {
+  color: #777e8d;
+  font-size: 12px;
+  margin-top: 4px;
+  margin-bottom: 18px;
+}
+
+.death-card {
+  padding: 18px;
+  background: #0b0d12;
+  border: 1px solid #222631;
+  border-radius: 16px;
+}
+
+.generation {
+  font-size: 45px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.gen-label {
+  color: #626978;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 5px 0 18px;
+}
+
+.death-stats {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px;
+}
+
+.death-stat strong {
+  display: block;
+  font-size: 17px;
+}
+
+.death-stat span {
+  color: #626978;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.lived {
+  color: #777e8d;
+  font-size: 11px;
+  margin-top: 15px;
+}
+
+.tweet {
+  margin: 15px 0;
+  padding: 12px;
+  border-radius: 11px;
+  background: #090b10;
+  border: 1px solid #1d2129;
+  color: #9ca3b2;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.modal-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 7px;
+  font-weight: 900;
+  cursor: pointer;
+  color: white;
+  background: #1d9bf0;
+}
+
+.modal-btn.close {
+  background: transparent;
+  color: #707787;
+  border: 1px solid #292d37;
+}
+
+/* ─────────────────────────
+   TOAST
+───────────────────────── */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  top: 18px;
+  transform: translate(-50%,-100px);
+  padding: 11px 18px;
+  background: #151820;
+  border: 1px solid #333844;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  z-index: 300;
+  opacity: 0;
+  transition: .3s;
+}
+
+#toast.show {
+  transform: translate(-50%,0);
+  opacity: 1;
+}
+
+#toast.success {
+  border-color: rgba(69,223,145,.5);
+}
+
+#toast.error {
+  border-color: rgba(255,82,99,.5);
+}
+
+/* ─────────────────────────
+   PARTICLES
+───────────────────────── */
+
+.particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 200;
+  font-size: 18px;
+  animation: particle 1.1s ease-out forwards;
+}
+
+@keyframes particle {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-90px) scale(1.35);
+  }
+}
+
+.screen-shake {
+  animation: screenShake .4s;
+}
+
+@keyframes screenShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* ─────────────────────────
+   MOBILE
+───────────────────────── */
+
+@media(max-width: 800px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .activity-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media(max-width: 520px) {
+  body {
+    padding: 12px;
+  }
+
+  .topbar {
+    margin-bottom: 12px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .card {
+    border-radius: 21px;
+  }
+
+  .main-header {
+    padding: 20px 18px 0;
+  }
+
+  .gerald-stage {
+    height: 285px;
+    margin: 8px 12px 0;
+  }
+
+  #pet-box {
+    width: 230px;
+    height: 230px;
+  }
+
+  #pet-box svg {
+    width: 220px;
+    height: 220px;
+  }
+
+  .vitals {
+    padding: 0 18px;
+  }
+
+  .actions {
+    padding: 8px 18px 18px;
+  }
+
+  .sidebar {
+    display: flex;
+  }
+}
+</style>
 </head>
+
 <body>
 
 <div id="toast"></div>
 
-<div class="modal-overlay" id="death-modal">
+<div class="overlay" id="death-modal">
   <div class="modal">
-    <h2>💀 Gerald Cam</h2>
-    <div class="modal-sub">Generation <span id="dm-gen">1</span> has fallen</div>
-    
-    <div class="death-cert">
-      <div class="death-gen" id="dm-gen-big">1</div>
-      <div class="death-gen-label">Generation</div>
-      
+    <div class="modal-cat">💀🐱</div>
+    <h2>Gerald has died.</h2>
+    <div class="modal-sub">
+      Generation <span id="dm-gen">1</span> is over.
+    </div>
+
+    <div class="death-card">
+      <div class="generation" id="dm-gen-big">1</div>
+      <div class="gen-label">Generation</div>
+
       <div class="death-stats">
-        <div class="ds">
-          <div class="ds-num" id="dm-feeds">0</div>
-          <div class="ds-label">Feeds</div>
+        <div class="death-stat">
+          <strong id="dm-feeds">0</strong>
+          <span>Feeds</span>
         </div>
-        <div class="ds">
-          <div class="ds-num" id="dm-poisons">0</div>
-          <div class="ds-label">Poisons</div>
+        <div class="death-stat">
+          <strong id="dm-poisons">0</strong>
+          <span>Poisons</span>
         </div>
-        <div class="ds">
-          <div class="ds-num" id="dm-plays">0</div>
-          <div class="ds-label">Plays</div>
+        <div class="death-stat">
+          <strong id="dm-plays">0</strong>
+          <span>Plays</span>
         </div>
       </div>
-      
-      <div class="death-lived" id="dm-lived">Lived 42 minutes</div>
+
+      <div class="lived" id="dm-lived">Lived less than a minute</div>
     </div>
-    
-    <div class="tweet-box" id="tweet-text"></div>
-    
-    <button class="modal-btn" onclick="copyTweet()">📋 Copy Tweet</button>
-    <button class="modal-btn modal-close" onclick="closeModal()">Close</button>
+
+    <div class="tweet" id="tweet-text"></div>
+
+    <button class="modal-btn" onclick="copyTweet()">Copy Death Report</button>
+    <button class="modal-btn close" onclick="closeModal()">Close</button>
   </div>
 </div>
 
-<div class="layout">
-  <div class="card" id="main-card">
-    <div class="header">
-      <h1>Gerald 🐱 <span style="font-size:14px;opacity:0.6">Gen <span id="gen">1</span></span></h1>
-      <div class="sub">The Internet's Kitty · One page. One life. One community.</div>
-    </div>
+<div class="app">
 
-    <div class="status-row">
-      <span class="conn-dot" id="conn-dot"></span>
-      <span class="badge badge-alive" id="status-badge">ALIVE</span>
-      <span style="font-size:11px;color:#555;" id="user-count">0 watching</span>
-    </div>
-
-    <div class="pet-box" id="pet-box"></div>
-
-    <div class="mood" id="mood">Gerald is purring happily.</div>
-
-    <div class="bar-wrap">
-      <div class="bar-label"><span>Health</span><span id="health-val">100%</span></div>
-      <div class="bar-track"><div class="bar-fill fill-health" id="health-bar" style="width:100%"></div></div>
-    </div>
-    <div class="bar-wrap">
-      <div class="bar-label"><span>Fullness</span><span id="fullness-val">100%</span></div>
-      <div class="bar-track"><div class="bar-fill fill-fullness" id="fullness-bar" style="width:100%"></div></div>
-    </div>
-    <div class="bar-wrap">
-      <div class="bar-label"><span>Happiness</span><span id="hap-val">100%</span></div>
-      <div class="bar-track"><div class="bar-fill fill-happiness" id="happiness-bar" style="width:100%"></div></div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-feed" onclick="doAction('feed')" id="btn-feed">
-        <span class="emoji">🐟</span><span class="label">FEED</span>
-      </button>
-      <button class="btn btn-poison" onclick="doAction('poison')" id="btn-poison">
-        <span class="emoji">☠️</span><span class="label">POISON</span>
-      </button>
-      <button class="btn btn-play" onclick="doAction('play')" id="btn-play">
-        <span class="emoji">🧶</span><span class="label">PLAY</span>
-      </button>
-    </div>
-
-    <div class="res-timer" id="res-timer" style="display:none"></div>
-
-    <div class="stats">
-      <div class="stat"><div class="stat-num" id="stat-feeds">0</div><div class="stat-label">Feeds</div></div>
-      <div class="stat"><div class="stat-num" id="stat-poisons">0</div><div class="stat-label">Poisons</div></div>
-      <div class="stat"><div class="stat-num" id="stat-plays">0</div><div class="stat-label">Plays</div></div>
-      <div class="stat"><div class="stat-num" id="stat-deaths">0</div><div class="stat-label">Deaths</div></div>
-    </div>
-
-    <div class="log" id="log">
-      <div class="log-title">Recent Activity</div>
-    </div>
-  </div>
-
-  <div class="side-panel">
-    <div class="panel-box">
-      <div class="panel-title"><span class="live-dot"></span> Live Now</div>
-      <div class="last-action" id="last-action">Waiting for the first move...</div>
-    </div>
-
-    <div class="panel-box">
-      <div class="panel-title">🏆 Country Leaderboard</div>
-      <div id="leaderboard">
-        <div style="color:#555;font-size:12px;text-align:center;padding:10px;">No data yet. Be the first!</div>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">🐱</div>
+      <div class="brand-text">
+        <strong>Gerald Cam</strong>
+        <span>The Internet's shared cat</span>
       </div>
     </div>
+
+    <div class="live-status">
+      <span class="live-indicator" id="live-indicator"></span>
+      <span id="connection-text">Connecting</span>
+    </div>
   </div>
+
+  <div class="grid">
+
+    <!-- MAIN -->
+    <main class="card">
+
+      <div class="main-header">
+        <h1>Keep <span>Gerald</span> alive.</h1>
+
+        <div class="subtitle">
+          Everyone controls the same cat.
+          Nobody controls what happens next.
+        </div>
+
+        <div class="status-line">
+          <span class="status-badge" id="status-badge">ALIVE</span>
+          <span class="watchers" id="user-count">0 watching</span>
+        </div>
+      </div>
+
+      <div class="gerald-stage" id="main-card">
+        <div class="stage-glow"></div>
+
+        <div class="floating-heart heart-1">♡</div>
+        <div class="floating-heart heart-2">♡</div>
+
+        <div id="pet-box"></div>
+      </div>
+
+      <div class="mood" id="mood">
+        Gerald is purring happily.
+      </div>
+
+      <div class="vitals">
+
+        <div class="vital">
+          <div class="vital-top">
+            <span>Health</span>
+            <span class="vital-value" id="health-val">100%</span>
+          </div>
+          <div class="track">
+            <div class="fill health" id="health-bar" style="width:100%"></div>
+          </div>
+        </div>
+
+        <div class="vital">
+          <div class="vital-top">
+            <span>Fullness</span>
+            <span class="vital-value" id="fullness-val">100%</span>
+          </div>
+          <div class="track">
+            <div class="fill fullness" id="fullness-bar" style="width:100%"></div>
+          </div>
+        </div>
+
+        <div class="vital">
+          <div class="vital-top">
+            <span>Happiness</span>
+            <span class="vital-value" id="hap-val">100%</span>
+          </div>
+          <div class="track">
+            <div class="fill happiness" id="happiness-bar" style="width:100%"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="res-timer" class="resurrection" style="display:none"></div>
+
+      <div class="actions">
+
+        <button class="action feed" id="btn-feed" onclick="doAction('feed')">
+          <span class="action-icon">🐟</span>
+          <span class="action-name">FEED</span>
+        </button>
+
+        <button class="action poison" id="btn-poison" onclick="doAction('poison')">
+          <span class="action-icon">☠️</span>
+          <span class="action-name">POISON</span>
+        </button>
+
+        <button class="action play" id="btn-play" onclick="doAction('play')">
+          <span class="action-icon">🧶</span>
+          <span class="action-name">PLAY</span>
+        </button>
+
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-number" id="stat-feeds">0</div>
+          <div class="stat-label">Feeds</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-number" id="stat-poisons">0</div>
+          <div class="stat-label">Poisons</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-number" id="stat-plays">0</div>
+          <div class="stat-label">Plays</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-number" id="stat-deaths">0</div>
+          <div class="stat-label">Deaths</div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <section class="panel">
+
+        <div class="panel-title">
+          <span class="live-indicator"></span>
+          Live activity
+        </div>
+
+        <div class="last-action" id="last-action">
+          Waiting for the first move...
+        </div>
+
+      </section>
+
+      <section class="panel">
+
+        <div class="panel-title">
+          🏆 Global leaderboard
+        </div>
+
+        <div id="leaderboard">
+          <div style="
+            color:#555;
+            font-size:11px;
+            text-align:center;
+            padding:10px;
+          ">
+            Waiting for data...
+          </div>
+        </div>
+
+      </section>
+
+      <section class="panel activity-panel">
+
+        <div class="panel-title">
+          Activity
+        </div>
+
+        <div class="activity" id="log">
+        </div>
+
+      </section>
+
+    </aside>
+
+  </div>
+
 </div>
 
 <script>
-const socket = io({ reconnection: true, reconnectionAttempts: 5 });
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: 5
+});
 
-/* ─── Country Detection (CACHED) ─── */
+/* ─────────────────────────
+   COUNTRY
+───────────────────────── */
+
 let userCountry = localStorage.getItem('gerald-country');
+
 if (!userCountry) {
   fetch('https://ipapi.co/json/')
     .then(r => r.json())
@@ -442,548 +1104,1105 @@ if (!userCountry) {
       userCountry = d.country_code || 'Unknown';
       localStorage.setItem('gerald-country', userCountry);
     })
-    .catch(() => { userCountry = 'Unknown'; });
+    .catch(() => {
+      userCountry = 'Unknown';
+    });
 }
 
-/* ─── CUTE KITTEN SVGS ─── */
+/* ─────────────────────────
+   GERALD
+───────────────────────── */
+
 const SVGS = {
-  happy: `
-    <svg viewBox="0 0 120 120" class="anim-float">
-      <defs>
-        <radialGradient id="cat-body" cx="45%" cy="35%" r="60%">
-          <stop offset="0%" stop-color="#FFE0B2"/>
-          <stop offset="60%" stop-color="#FFB74D"/>
-          <stop offset="100%" stop-color="#FFA726"/>
-        </radialGradient>
-        <radialGradient id="cat-chest" cx="50%" cy="40%" r="50%">
-          <stop offset="0%" stop-color="#FFFFFF"/>
-          <stop offset="100%" stop-color="#FFF3E0"/>
-        </radialGradient>
-      </defs>
-      <!-- Shadow -->
-      <ellipse cx="60" cy="110" rx="34" ry="6" fill="#000" opacity="0.22"/>
-      
-      <!-- Swaying Tail -->
-      <path class="anim-tail" d="M 86,82 C 104,80 112,65 106,50 C 102,40 92,44 95,52 C 98,62 92,72 80,78" 
-            fill="none" stroke="#FFB74D" stroke-width="8" stroke-linecap="round"/>
-      <path class="anim-tail" d="M 103,46 Q 106,50 101,53" 
-            fill="none" stroke="#FFA726" stroke-width="6" stroke-linecap="round"/>
 
-      <!-- Body -->
-      <ellipse cx="60" cy="74" rx="36" ry="30" fill="url(#cat-body)"/>
-      <ellipse cx="60" cy="78" rx="22" ry="20" fill="url(#cat-chest)"/>
+happy: `
+<svg viewBox="0 0 240 240" class="cat-float">
 
-      <!-- Pointy Cat Ears -->
-      <!-- Left Ear -->
-      <path d="M 26,48 L 18,18 Q 32,24 42,34 Z" fill="#FFB74D"/>
-      <path d="M 28,44 L 22,23 Q 32,27 38,34 Z" fill="#FF8A80" opacity="0.75"/>
-      <!-- Right Ear -->
-      <path d="M 94,48 L 102,18 Q 88,24 78,34 Z" fill="#FFB74D"/>
-      <path d="M 92,44 L 98,23 Q 88,27 82,34 Z" fill="#FF8A80" opacity="0.75"/>
+<defs>
 
-      <!-- Tabby Forehead Stripes -->
-      <path d="M 54,35 L 54,42 M 60,32 L 60,42 M 66,35 L 66,42" stroke="#E65100" stroke-width="2.5" stroke-linecap="round"/>
+  <radialGradient id="fur" cx="38%" cy="25%" r="75%">
+    <stop offset="0%" stop-color="#ffe8c4"/>
+    <stop offset="55%" stop-color="#ffbd6b"/>
+    <stop offset="100%" stop-color="#e98932"/>
+  </radialGradient>
 
-      <!-- Cheeks Blush -->
-      <ellipse cx="32" cy="68" rx="7" ry="4" fill="#FF8A80" opacity="0.5"/>
-      <ellipse cx="88" cy="68" rx="7" ry="4" fill="#FF8A80" opacity="0.5"/>
+  <radialGradient id="belly" cx="50%" cy="30%" r="70%">
+    <stop offset="0%" stop-color="#fffaf1"/>
+    <stop offset="100%" stop-color="#ffe5c5"/>
+  </radialGradient>
 
-      <!-- Anime Kawaii Cat Eyes -->
-      <g class="anim-blink">
-        <ellipse cx="42" cy="58" rx="9" ry="11" fill="#2d2d3a"/>
-        <ellipse cx="78" cy="58" rx="9" ry="11" fill="#2d2d3a"/>
-        <!-- Eye Highlights -->
-        <circle cx="39" cy="54" r="4" fill="#fff"/>
-        <circle cx="75" cy="54" r="4" fill="#fff"/>
-        <circle cx="44" cy="61" r="2" fill="#fff" opacity="0.8"/>
-        <circle cx="80" cy="61" r="2" fill="#fff" opacity="0.8"/>
-      </g>
+  <linearGradient id="ear" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#ffb0a8"/>
+    <stop offset="100%" stop-color="#ff777e"/>
+  </linearGradient>
 
-      <!-- Whiskers -->
-      <g stroke="#2d2d3a" stroke-width="1.2" stroke-linecap="round" opacity="0.75">
-        <!-- Left Whiskers -->
-        <path d="M 24,60 L 6,56"/>
-        <path d="M 22,65 L 4,65"/>
-        <path d="M 24,70 L 8,74"/>
-        <!-- Right Whiskers -->
-        <path d="M 96,60 L 114,56"/>
-        <path d="M 98,65 L 116,65"/>
-        <path d="M 96,70 L 112,74"/>
-      </g>
+</defs>
 
-      <!-- Little Pink Cat Nose -->
-      <path d="M 57,65 Q 60,63 63,65 Q 60,70 57,65" fill="#FF8A80"/>
+<!-- shadow -->
+<ellipse cx="120" cy="213" rx="63" ry="11"
+         fill="#000" opacity=".22"/>
 
-      <!-- Cute :3 Kitty Mouth -->
-      <path d="M 52,70 Q 56,76 60,71 Q 64,76 68,70" stroke="#2d2d3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+<!-- tail -->
+<path
+  d="M174 158
+     C207 164 218 137 205 116
+     C198 105 186 111 191 123
+     C197 138 187 149 166 151"
+  fill="none"
+  stroke="#e9953e"
+  stroke-width="15"
+  stroke-linecap="round"/>
 
-      <!-- Front Kitten Paws with Toe Beans -->
-      <g>
-        <ellipse cx="40" cy="98" rx="8" ry="6" fill="#FFF3E0"/>
-        <ellipse cx="80" cy="98" rx="8" ry="6" fill="#FFF3E0"/>
-        <ellipse cx="40" cy="99" rx="3.5" ry="2.5" fill="#FF8A80"/>
-        <ellipse cx="80" cy="99" rx="3.5" ry="2.5" fill="#FF8A80"/>
-      </g>
+<path
+  d="M202 112 Q212 119 206 128"
+  fill="none"
+  stroke="#d97928"
+  stroke-width="7"
+  stroke-linecap="round"/>
 
-      <!-- Sparkles -->
-      <text x="12" y="32" font-size="12" opacity="0.8">✨</text>
-      <text x="96" y="28" font-size="10" opacity="0.6">✨</text>
-    </svg>`,
+<!-- body -->
+<ellipse cx="120" cy="148" rx="70" ry="61"
+         fill="url(#fur)"/>
 
-  hungry: `
-    <svg viewBox="0 0 120 120">
-      <defs>
-        <radialGradient id="h-cat" cx="45%" cy="35%" r="60%">
-          <stop offset="0%" stop-color="#FFE0B2"/>
-          <stop offset="100%" stop-color="#FFB74D"/>
-        </radialGradient>
-      </defs>
-      <ellipse cx="60" cy="110" rx="34" ry="6" fill="#000" opacity="0.22"/>
-      
-      <!-- Body -->
-      <ellipse cx="60" cy="76" rx="36" ry="28" fill="url(#h-cat)"/>
+<!-- belly -->
+<ellipse cx="120" cy="164" rx="43" ry="38"
+         fill="url(#belly)"/>
 
-      <!-- Droopy Airplane Cat Ears -->
-      <path d="M 30,52 L 10,36 Q 24,34 38,42 Z" fill="#FFB74D"/>
-      <path d="M 28,48 L 14,37 Q 24,36 34,42 Z" fill="#FF8A80" opacity="0.6"/>
-      <path d="M 90,52 L 110,36 Q 96,34 82,42 Z" fill="#FFB74D"/>
-      <path d="M 92,48 L 106,37 Q 96,36 86,42 Z" fill="#FF8A80" opacity="0.6"/>
+<!-- ears -->
+<path d="M65 88 L47 32 Q72 42 91 66 Z"
+      fill="#f3a04d"/>
 
-      <!-- Sad Teary Eyes -->
-      <ellipse cx="42" cy="60" rx="9" ry="11" fill="#2d2d3a"/>
-      <ellipse cx="78" cy="60" rx="9" ry="11" fill="#2d2d3a"/>
-      <circle cx="39" cy="56" r="3.5" fill="#fff"/>
-      <circle cx="75" cy="56" r="3.5" fill="#fff"/>
-      
-      <!-- Big Tear Drops -->
-      <path d="M 32,66 Q 30,76 32,82" stroke="#60a5fa" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <circle cx="32" cy="84" r="2.5" fill="#60a5fa"/>
+<path d="M72 76 L58 43 Q72 49 84 65 Z"
+      fill="url(#ear)"/>
 
-      <!-- Drooping Whiskers -->
-      <g stroke="#2d2d3a" stroke-width="1.2" stroke-linecap="round" opacity="0.6">
-        <path d="M 24,64 L 8,68"/>
-        <path d="M 22,69 L 6,76"/>
-        <path d="M 96,64 L 112,68"/>
-        <path d="M 98,69 L 114,76"/>
-      </g>
+<path d="M175 88 L193 32 Q168 42 149 66 Z"
+      fill="#f3a04d"/>
 
-      <!-- Nose -->
-      <path d="M 57,67 Q 60,65 63,67 Q 60,71 57,67" fill="#FF8A80"/>
+<path d="M168 76 L182 43 Q168 49 156 65 Z"
+      fill="url(#ear)"/>
 
-      <!-- Sad Trembling Cat Mouth -->
-      <path d="M 52,77 Q 60,71 68,77" stroke="#2d2d3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+<!-- forehead -->
+<path d="M108 58 L108 77"
+      stroke="#c66c25"
+      stroke-width="5"
+      stroke-linecap="round"/>
 
-      <!-- Begging Paws -->
-      <ellipse cx="48" cy="94" rx="7" ry="5" fill="#FFF3E0"/>
-      <ellipse cx="72" cy="94" rx="7" ry="5" fill="#FFF3E0"/>
+<path d="M120 53 L120 75"
+      stroke="#c66c25"
+      stroke-width="5"
+      stroke-linecap="round"/>
 
-      <!-- Empty Fish Bowl -->
-      <path d="M 88,106 Q 100,102 112,106 L 108,112 L 92,112 Z" fill="#334155" opacity="0.5"/>
-      <path d="M 94,105 Q 100,108 106,105" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
-    </svg>`,
+<path d="M132 58 L132 77"
+      stroke="#c66c25"
+      stroke-width="5"
+      stroke-linecap="round"/>
 
-  sick: `
-    <svg viewBox="0 0 120 120" class="anim-sick">
-      <defs>
-        <radialGradient id="sick-cat" cx="45%" cy="35%" r="60%">
-          <stop offset="0%" stop-color="#E8F5E9"/>
-          <stop offset="60%" stop-color="#C8E6C9"/>
-          <stop offset="100%" stop-color="#A5D6A7"/>
-        </radialGradient>
-      </defs>
-      <ellipse cx="60" cy="110" rx="34" ry="6" fill="#000" opacity="0.22"/>
-      
-      <!-- Body -->
-      <ellipse cx="60" cy="74" rx="36" ry="30" fill="url(#sick-cat)"/>
+<!-- eyes -->
+<g>
 
-      <!-- Flat Ears -->
-      <path d="M 28,48 L 10,34 Q 26,30 38,40 Z" fill="#A5D6A7"/>
-      <path d="M 92,48 L 110,34 Q 94,30 82,40 Z" fill="#A5D6A7"/>
+  <ellipse cx="91" cy="105" rx="17" ry="21"
+           fill="#292a35"/>
 
-      <!-- Dizzy Spiral Cat Eyes -->
-      <circle cx="42" cy="58" r="9" fill="#2d2d3a"/>
-      <circle cx="78" cy="58" r="9" fill="#2d2d3a"/>
-      <path d="M 38,55 Q 42,51 46,55 Q 42,59 38,55" stroke="#81c784" stroke-width="2" fill="none"/>
-      <path d="M 74,55 Q 78,51 82,55 Q 78,59 74,55" stroke="#81c784" stroke-width="2" fill="none"/>
+  <ellipse cx="149" cy="105" rx="17" ry="21"
+           fill="#292a35"/>
 
-      <!-- Sweat Drops -->
-      <path d="M 20,40 Q 18,32 20,28" stroke="#60a5fa" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M 100,40 Q 102,32 100,28" stroke="#60a5fa" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="94" cy="99" rx="7" ry="9"
+           fill="white"/>
 
-      <!-- Bent Whiskers -->
-      <g stroke="#2d2d3a" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.6">
-        <path d="M 24,60 Q 14,58 6,64"/>
-        <path d="M 22,66 Q 12,68 4,72"/>
-        <path d="M 96,60 Q 106,58 114,64"/>
-        <path d="M 98,66 Q 108,68 116,72"/>
-      </g>
+  <ellipse cx="152" cy="99" rx="7" ry="9"
+           fill="white"/>
 
-      <!-- Nose -->
-      <path d="M 57,65 Q 60,63 63,65 Q 60,69 57,65" fill="#FF8A80"/>
+  <circle cx="86" cy="116" r="3"
+          fill="white" opacity=".8"/>
 
-      <!-- Wobbly Sick Mouth -->
-      <path d="M 50,75 Q 55,70 60,75 Q 65,80 70,75" stroke="#2d2d3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="144" cy="116" r="3"
+          fill="white" opacity=".8"/>
 
-      <!-- Anime Sick Snot Bubble -->
-      <circle cx="65" cy="65" r="5" fill="#81d4fa" opacity="0.65"/>
-      <circle cx="63" cy="63" r="2" fill="#fff" opacity="0.8"/>
-    </svg>`,
+</g>
 
-  dead: `
-    <svg viewBox="0 0 120 120" class="anim-ghost">
-      <defs>
-        <radialGradient id="ghost-cat" cx="50%" cy="40%" r="55%">
-          <stop offset="0%" stop-color="#FFFFFF"/>
-          <stop offset="70%" stop-color="#E0E7FF"/>
-          <stop offset="100%" stop-color="#C7D2FE"/>
-        </radialGradient>
-      </defs>
+<!-- blush -->
+<ellipse cx="72" cy="126" rx="14" ry="7"
+         fill="#ff8d91" opacity=".35"/>
 
-      <!-- Angel Kitty Halo -->
-      <ellipse cx="60" cy="18" rx="20" ry="5" fill="none" stroke="#FDE047" stroke-width="3" opacity="0.95"/>
+<ellipse cx="168" cy="126" rx="14" ry="7"
+         fill="#ff8d91" opacity=".35"/>
 
-      <!-- Tiny Angel Wings -->
-      <path d="M 26,48 Q 6,36 12,58 Q 22,62 30,54" fill="#EEF2FF" opacity="0.9"/>
-      <path d="M 94,48 Q 114,36 108,58 Q 98,62 90,54" fill="#EEF2FF" opacity="0.9"/>
+<!-- whiskers -->
+<g stroke="#34343d"
+   stroke-width="2"
+   stroke-linecap="round"
+   opacity=".65">
 
-      <!-- Ghost Kitty Body -->
-      <ellipse cx="60" cy="66" rx="34" ry="28" fill="url(#ghost-cat)"/>
+  <path d="M69 122 L35 115"/>
+  <path d="M68 130 L31 130"/>
+  <path d="M71 137 L38 146"/>
 
-      <!-- Ghost Cat Ears -->
-      <path d="M 28,44 L 20,18 Q 34,24 42,32 Z" fill="#C7D2FE"/>
-      <path d="M 30,40 L 24,23 Q 34,27 38,32 Z" fill="#F472B6" opacity="0.5"/>
-      <path d="M 92,44 L 100,18 Q 86,24 78,32 Z" fill="#C7D2FE"/>
-      <path d="M 90,40 L 96,23 Q 86,27 82,32 Z" fill="#F472B6" opacity="0.5"/>
+  <path d="M171 122 L205 115"/>
+  <path d="M172 130 L209 130"/>
+  <path d="M169 137 L202 146"/>
 
-      <!-- X-X Eyes -->
-      <g stroke="#4338CA" stroke-width="3" stroke-linecap="round">
-        <line x1="36" y1="50" x2="48" y2="62"/>
-        <line x1="48" y1="50" x2="36" y2="62"/>
-        <line x1="72" y1="50" x2="84" y2="62"/>
-        <line x1="84" y1="50" x2="72" y2="62"/>
-      </g>
+</g>
 
-      <!-- Ghost Whiskers -->
-      <g stroke="#818CF8" stroke-width="1.2" stroke-linecap="round" opacity="0.8">
-        <path d="M 24,58 L 8,56"/>
-        <path d="M 22,64 L 6,66"/>
-        <path d="M 96,58 L 112,56"/>
-        <path d="M 98,64 L 114,66"/>
-      </g>
+<!-- nose -->
+<path
+  d="M113 124 Q120 119 127 124 Q120 133 113 124"
+  fill="#ff7f87"/>
 
-      <!-- Nose & Mouth -->
-      <ellipse cx="60" cy="65" rx="3" ry="2" fill="#818CF8"/>
-      <path d="M 52,72 Q 60,67 68,72" stroke="#4338CA" stroke-width="2" fill="none" stroke-linecap="round"/>
+<!-- mouth -->
+<path
+  d="M106 135 Q113 145 120 137 Q127 145 134 135"
+  fill="none"
+  stroke="#34343d"
+  stroke-width="3"
+  stroke-linecap="round"/>
 
-      <!-- Curved Ghost Cat Tail -->
-      <path d="M 88,78 Q 104,82 98,96 Q 88,102 78,92" fill="none" stroke="#C7D2FE" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
-    </svg>`,
+<!-- paws -->
+<ellipse cx="88" cy="193" rx="18" ry="12"
+         fill="#fff2dc"/>
 
-  egg: `
-    <svg viewBox="0 0 120 120" class="anim-egg">
-      <defs>
-        <radialGradient id="egg-shell" cx="42%" cy="35%" r="55%">
-          <stop offset="0%" stop-color="#FFF8E1"/>
-          <stop offset="100%" stop-color="#FFE0B2"/>
-        </radialGradient>
-      </defs>
+<ellipse cx="152" cy="193" rx="18" ry="12"
+         fill="#fff2dc"/>
 
-      <!-- Egg Shell Base -->
-      <ellipse cx="60" cy="70" rx="35" ry="42" fill="url(#egg-shell)"/>
+<ellipse cx="88" cy="195" rx="7" ry="5"
+         fill="#ff8b91"/>
 
-      <!-- Kitty Ears Poking Out Top -->
-      <path d="M 34,36 L 24,14 Q 38,20 44,28 Z" fill="#FFB74D"/>
-      <path d="M 34,33 L 27,18 Q 38,22 41,28 Z" fill="#FF8A80"/>
-      <path d="M 86,36 L 96,14 Q 82,20 76,28 Z" fill="#FFB74D"/>
-      <path d="M 86,33 L 93,18 Q 82,22 79,28 Z" fill="#FF8A80"/>
+<ellipse cx="152" cy="195" rx="7" ry="5"
+         fill="#ff8b91"/>
 
-      <!-- Shell Crack Opening -->
-      <path d="M 30,52 L 42,62 L 52,54 L 62,64 L 74,54 L 88,60 L 92,50 L 95,72 C 92,98 28,98 25,72 Z" fill="#FFE0B2"/>
-      
-      <!-- Kitten Peeking Inside Crack -->
-      <g>
-        <!-- Eyes -->
-        <ellipse cx="46" cy="56" rx="5" ry="6" fill="#2d2d3a"/>
-        <ellipse cx="74" cy="56" rx="5" ry="6" fill="#2d2d3a"/>
-        <circle cx="44" cy="54" r="2" fill="#fff"/>
-        <circle cx="72" cy="54" r="2" fill="#fff"/>
-        <!-- Whiskers -->
-        <line x1="30" y1="58" x2="18" y2="56" stroke="#2d2d3a" stroke-width="1"/>
-        <line x1="30" y1="62" x2="18" y2="64" stroke="#2d2d3a" stroke-width="1"/>
-        <line x1="90" y1="58" x2="102" y2="56" stroke="#2d2d3a" stroke-width="1"/>
-        <line x1="90" y1="62" x2="102" y2="64" stroke="#2d2d3a" stroke-width="1"/>
-        <!-- Mouth -->
-        <path d="M 56,62 Q 60,65 64,62" stroke="#2d2d3a" stroke-width="1.5" fill="none"/>
-      </g>
+</svg>
+`,
 
-      <!-- Tiny Kitten Paws Clinging To Shell Edge -->
-      <ellipse cx="40" cy="65" rx="5" ry="3" fill="#FFF3E0"/>
-      <ellipse cx="80" cy="65" rx="5" ry="3" fill="#FFF3E0"/>
-    </svg>`
+hungry: `
+<svg viewBox="0 0 240 240" class="cat-float">
+
+<defs>
+  <radialGradient id="hungryfur" cx="40%" cy="25%" r="75%">
+    <stop offset="0%" stop-color="#ffe8c4"/>
+    <stop offset="100%" stop-color="#e8943b"/>
+  </radialGradient>
+</defs>
+
+<ellipse cx="120" cy="213" rx="63" ry="11"
+         fill="#000" opacity=".2"/>
+
+<ellipse cx="120" cy="150" rx="70" ry="60"
+         fill="url(#hungryfur)"/>
+
+<!-- droopy ears -->
+<path d="M68 91 L39 59 Q62 55 91 70 Z"
+      fill="#e9943e"/>
+
+<path d="M172 91 L201 59 Q178 55 149 70 Z"
+      fill="#e9943e"/>
+
+<!-- eyes -->
+<ellipse cx="91" cy="108" rx="17" ry="20"
+         fill="#292a35"/>
+
+<ellipse cx="149" cy="108" rx="17" ry="20"
+         fill="#292a35"/>
+
+<circle cx="86" cy="102" r="6"
+        fill="white"/>
+
+<circle cx="144" cy="102" r="6"
+        fill="white"/>
+
+<!-- tears -->
+<path d="M76 125 Q70 143 76 151"
+      stroke="#60a5fa"
+      stroke-width="4"
+      fill="none"
+      stroke-linecap="round"/>
+
+<path d="M164 125 Q170 143 164 151"
+      stroke="#60a5fa"
+      stroke-width="4"
+      fill="none"
+      stroke-linecap="round"/>
+
+<!-- nose -->
+<path d="M113 128 Q120 123 127 128 Q120 137 113 128"
+      fill="#ff7f87"/>
+
+<!-- sad mouth -->
+<path d="M103 145 Q120 132 137 145"
+      fill="none"
+      stroke="#34343d"
+      stroke-width="3"
+      stroke-linecap="round"/>
+
+<!-- begging paws -->
+<ellipse cx="98" cy="192" rx="17" ry="11"
+         fill="#fff2dc"/>
+
+<ellipse cx="142" cy="192" rx="17" ry="11"
+         fill="#fff2dc"/>
+
+<!-- empty bowl -->
+<path d="M171 195 Q190 188 209 195 L202 211 Q190 217 178 211 Z"
+      fill="#475569"/>
+
+<path d="M175 198 Q190 204 205 198"
+      fill="none"
+      stroke="#94a3b8"
+      stroke-width="2"/>
+
+</svg>
+`,
+
+sick: `
+<svg viewBox="0 0 240 240" class="cat-shake">
+
+<defs>
+  <radialGradient id="sickfur" cx="40%" cy="25%" r="75%">
+    <stop offset="0%" stop-color="#dff6df"/>
+    <stop offset="100%" stop-color="#8fca93"/>
+  </radialGradient>
+</defs>
+
+<ellipse cx="120" cy="213" rx="63" ry="11"
+         fill="#000" opacity=".2"/>
+
+<ellipse cx="120" cy="150" rx="70" ry="60"
+         fill="url(#sickfur)"/>
+
+<!-- flat ears -->
+<path d="M69 92 L40 59 Q64 53 91 70 Z"
+      fill="#8fca93"/>
+
+<path d="M171 92 L200 59 Q176 53 149 70 Z"
+      fill="#8fca93"/>
+
+<!-- dizzy eyes -->
+<circle cx="91" cy="106" r="18" fill="#292a35"/>
+<circle cx="149" cy="106" r="18" fill="#292a35"/>
+
+<path d="M81 105 Q91 94 101 105 Q91 116 81 105"
+      fill="none"
+      stroke="#81c784"
+      stroke-width="4"/>
+
+<path d="M139 105 Q149 94 159 105 Q149 116 139 105"
+      fill="none"
+      stroke="#81c784"
+      stroke-width="4"/>
+
+<!-- nose -->
+<path d="M113 127 Q120 122 127 127 Q120 136 113 127"
+      fill="#ff7f87"/>
+
+<!-- sick mouth -->
+<path d="M101 146 Q111 134 120 146 Q129 158 139 146"
+      fill="none"
+      stroke="#34343d"
+      stroke-width="3"/>
+
+<!-- snot bubble -->
+<circle cx="141" cy="126" r="9"
+        fill="#81d4fa"
+        opacity=".8"/>
+
+<circle cx="138" cy="123" r="3"
+        fill="white"/>
+
+</svg>
+`,
+
+dead: `
+<svg viewBox="0 0 240 240" class="cat-float">
+
+<ellipse cx="120" cy="207" rx="65" ry="9"
+         fill="#000" opacity=".12"/>
+
+<!-- halo -->
+<ellipse cx="120" cy="43" rx="45" ry="12"
+         fill="none"
+         stroke="#facc15"
+         stroke-width="6"/>
+
+<!-- wings -->
+<path d="M63 102 Q22 72 25 120 Q43 132 69 116"
+      fill="#e8ecff"/>
+
+<path d="M177 102 Q218 72 215 120 Q197 132 171 116"
+      fill="#e8ecff"/>
+
+<!-- ghost body -->
+<ellipse cx="120" cy="130" rx="65" ry="61"
+         fill="#e8ecff"/>
+
+<!-- ears -->
+<path d="M70 91 L50 43 Q73 50 92 69 Z"
+      fill="#cbd5ff"/>
+
+<path d="M170 91 L190 43 Q167 50 148 69 Z"
+      fill="#cbd5ff"/>
+
+<!-- X eyes -->
+<g stroke="#4f46b8"
+   stroke-width="6"
+   stroke-linecap="round">
+
+  <line x1="78" y1="95" x2="104" y2="121"/>
+  <line x1="104" y1="95" x2="78" y2="121"/>
+
+  <line x1="136" y1="95" x2="162" y2="121"/>
+  <line x1="162" y1="95" x2="136" y2="121"/>
+
+</g>
+
+<!-- mouth -->
+<path d="M103 139 Q120 128 137 139"
+      fill="none"
+      stroke="#4f46b8"
+      stroke-width="4"/>
+
+<!-- tail -->
+<path d="M178 165 Q214 175 195 200"
+      fill="none"
+      stroke="#cbd5ff"
+      stroke-width="12"
+      stroke-linecap="round"/>
+
+</svg>
+`,
+
+egg: `
+<svg viewBox="0 0 240 240" class="cat-float">
+
+<ellipse cx="120" cy="215" rx="55" ry="9"
+         fill="#000" opacity=".2"/>
+
+<!-- ears -->
+<path d="M87 65 L65 25 Q91 34 104 52 Z"
+      fill="#f3a04d"/>
+
+<path d="M153 65 L175 25 Q149 34 136 52 Z"
+      fill="#f3a04d"/>
+
+<!-- egg -->
+<ellipse cx="120" cy="128" rx="63" ry="78"
+         fill="#fff3d7"/>
+
+<!-- crack -->
+<path
+  d="M59 108 L82 124 L101 109 L120 128 L140 108 L160 124 L181 108 L180 157 Q120 180 60 157 Z"
+  fill="#ffe4b5"/>
+
+<!-- kitten -->
+<ellipse cx="93" cy="111" rx="10" ry="13"
+         fill="#292a35"/>
+
+<ellipse cx="147" cy="111" rx="10" ry="13"
+         fill="#292a35"/>
+
+<circle cx="90" cy="107" r="4"
+        fill="white"/>
+
+<circle cx="144" cy="107" r="4"
+        fill="white"/>
+
+<path d="M110 127 Q120 134 130 127"
+      fill="none"
+      stroke="#34343d"
+      stroke-width="3"/>
+
+</svg>
+`
+
 };
 
-/* ─── State ─── */
+/* ─────────────────────────
+   STATE
+───────────────────────── */
+
 let geraldState = {};
 let resTimerInterval = null;
-let lastDeathSnapshot = null;
 
-function showToast(msg, type = 'error') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = type === 'success' ? 'success' : 'error';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
+/* ─────────────────────────
+   HELPERS
+───────────────────────── */
 
-function spawnParticles(type) {
-  const emojis = { feed: ['🐟','🐱','✨','💖'], poison: ['☠️','💀','🟢'], play: ['🧶','🐾','⭐','🎉'] };
-  const list = emojis[type] || ['✨'];
-  const box = document.getElementById('pet-box').getBoundingClientRect();
-  for (let i = 0; i < 6; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.textContent = list[Math.floor(Math.random() * list.length)];
-    p.style.left = (box.left + box.width/2 + (Math.random()-0.5)*80) + 'px';
-    p.style.top = (box.top + box.height/2 + (Math.random()-0.5)*40) + 'px';
-    p.style.animationDelay = (Math.random() * 0.3) + 's';
-    document.body.appendChild(p);
-    setTimeout(() => p.remove(), 1400);
-  }
-}
+function showToast(message, type = 'error') {
 
-function getMood(data) {
-  if (data.status === 'DEAD') return 'Gerald has passed on to the rainbow bridge...';
-  if (data.status === 'EGG') return 'A new kitten is hatching...';
-  if (data.health < 30) return 'Gerald is meowing weakly!';
-  if (data.health < 50) return 'Gerald looks sick and sleepy...';
-  if (data.fullness < 20) return 'Gerald is starving! *Loud Meow*';
-  if (data.fullness < 40) return 'Gerald wants some fishy treats...';
-  if (data.happiness < 25) return 'Gerald is sitting in the corner sad.';
-  if (data.happiness < 45) return 'Gerald wants to play with yarn!';
-  if (data.health > 90 && data.fullness > 80 && data.happiness > 80) return 'Gerald is purring and making biscuits! ✨🐾';
-  if (data.fullness > 80 && data.happiness > 70) return 'Gerald is happy and full.';
-  return 'Gerald is vibing.';
-}
+  const toast = document.getElementById('toast');
 
-function renderAvatar(data) {
-  const box = document.getElementById('pet-box');
-  let svg = SVGS.happy;
-  if (data.status === 'DEAD') svg = SVGS.dead;
-  else if (data.status === 'EGG') svg = SVGS.egg;
-  else if (data.health < 50) svg = SVGS.sick;
-  else if (data.fullness < 35 || data.happiness < 35) svg = SVGS.hungry;
-  box.innerHTML = svg;
-  box.classList.toggle('anim-danger', data.status === 'ALIVE' && data.health < 30);
-}
+  toast.textContent = message;
+  toast.className = '';
+  toast.classList.add(type, 'show');
 
-function updateConnectionStatus(on) {
-  const dot = document.getElementById('conn-dot');
-  dot.classList.toggle('conn-online', on);
-  dot.classList.toggle('conn-offline', !on);
-}
-
-function updateResurrectionTimer() {
-  const el = document.getElementById('res-timer');
-  if (!geraldState.resurrectsAt || geraldState.status !== 'DEAD') {
-    el.style.display = 'none';
-    if (resTimerInterval) { clearInterval(resTimerInterval); resTimerInterval = null; }
-    return;
-  }
-  const diff = geraldState.resurrectsAt - Date.now();
-  if (diff <= 0) { el.style.display = 'none'; return; }
-  const mins = Math.floor(diff / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  el.textContent = `🥚 New kitten hatches in ${mins}m ${secs.toString().padStart(2,'0')}s`;
-  el.style.display = 'block';
-}
-
-function renderLeaderboard(countryStats) {
-  const container = document.getElementById('leaderboard');
-  if (!countryStats || Object.keys(countryStats).length === 0) {
-    container.innerHTML = '<div style="color:#555;font-size:12px;text-align:center;padding:10px;">No data yet. Be the first!</div>';
-    return;
-  }
-  
-  const entries = Object.entries(countryStats)
-    .map(([cc, data]) => ({ cc, ...data }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
-  
-  const maxScore = Math.max(...entries.map(e => Math.abs(e.score)), 1);
-  
-  container.innerHTML = entries.map((e, i) => {
-    const flag = getFlag(e.cc);
-    const pct = (Math.abs(e.score) / maxScore) * 100;
-    const barColor = e.score >= 0 ? '#4ade80' : '#ef4444';
-    return `
-      <div class="leaderboard-row">
-        <div class="lb-rank">${i + 1}</div>
-        <div class="lb-flag">${flag}</div>
-        <div class="lb-country">${e.cc}</div>
-        <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
-        <div class="lb-score ${e.score >= 0 ? 'pos' : 'neg'}">${e.score > 0 ? '+' : ''}${e.score}</div>
-      </div>
-    `;
-  }).join('');
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2600);
 }
 
 function getFlag(cc) {
-  if (cc === 'Unknown') return '🌐';
-  const offset = 127397;
+
+  if (!cc || cc === 'Unknown') return '🌐';
+
   try {
-    return String.fromCodePoint(...cc.split('').map(c => c.charCodeAt(0) + offset));
+    return String.fromCodePoint(
+      ...cc
+        .toUpperCase()
+        .split('')
+        .map(c => c.charCodeAt(0) + 127397)
+    );
   } catch {
     return '🌐';
   }
 }
 
-function renderLastAction(action) {
-  if (!action) return;
-  const labels = { feed: 'fed', poison: 'poisoned', play: 'played with' };
-  const emojis = { feed: '🐟', poison: '☠️', play: '🧶' };
-  const colors = { feed: '#4ade80', poison: '#ef4444', play: '#60a5fa' };
-  document.getElementById('last-action').innerHTML = 
-    `Last move: <strong style="color:${colors[action.type]}">${emojis[action.type]} Someone from ${action.country} ${labels[action.type]} Gerald</strong>`;
+/* ─────────────────────────
+   MOOD
+───────────────────────── */
+
+function getMood(data) {
+
+  if (data.status === 'DEAD')
+    return 'Gerald has crossed the rainbow bridge.';
+
+  if (data.status === 'EGG')
+    return 'Something is moving inside the egg...';
+
+  if (data.health < 30)
+    return 'Gerald is barely hanging on.';
+
+  if (data.health < 50)
+    return 'Gerald looks sick. Someone help him.';
+
+  if (data.fullness < 20)
+    return 'Gerald is starving. VERY loudly.';
+
+  if (data.fullness < 40)
+    return 'Gerald is looking at everyone like he has not eaten in days.';
+
+  if (data.happiness < 25)
+    return 'Gerald has entered the sad corner.';
+
+  if (data.happiness < 45)
+    return 'Gerald wants someone to play with him.';
+
+  if (
+    data.health > 90 &&
+    data.fullness > 80 &&
+    data.happiness > 80
+  )
+    return 'Gerald is purring. The internet is doing its job.';
+
+  if (data.fullness > 80 && data.happiness > 70)
+    return 'Gerald is happy and full.';
+
+  return 'Gerald is vibing.';
 }
 
+/* ─────────────────────────
+   AVATAR
+───────────────────────── */
+
+function renderAvatar(data) {
+
+  const box = document.getElementById('pet-box');
+
+  let svg = SVGS.happy;
+
+  if (data.status === 'DEAD')
+    svg = SVGS.dead;
+
+  else if (data.status === 'EGG')
+    svg = SVGS.egg;
+
+  else if (data.health < 50)
+    svg = SVGS.sick;
+
+  else if (
+    data.fullness < 35 ||
+    data.happiness < 35
+  )
+    svg = SVGS.hungry;
+
+  box.innerHTML = svg;
+}
+
+/* ─────────────────────────
+   PARTICLES
+───────────────────────── */
+
+function spawnParticles(type) {
+
+  const choices = {
+
+    feed: ['🐟','♡','✨','🐾'],
+
+    poison: ['☠️','💀','🟢'],
+
+    play: ['🧶','⭐','🐾','✨']
+
+  };
+
+  const list = choices[type] || ['✨'];
+
+  const box =
+    document
+      .getElementById('pet-box')
+      .getBoundingClientRect();
+
+  for (let i = 0; i < 7; i++) {
+
+    const particle =
+      document.createElement('div');
+
+    particle.className = 'particle';
+
+    particle.textContent =
+      list[Math.floor(Math.random() * list.length)];
+
+    particle.style.left =
+      box.left +
+      box.width / 2 +
+      (Math.random() - .5) * 120 +
+      'px';
+
+    particle.style.top =
+      box.top +
+      box.height / 2 +
+      (Math.random() - .5) * 60 +
+      'px';
+
+    particle.style.animationDelay =
+      Math.random() * .2 + 's';
+
+    document.body.appendChild(particle);
+
+    setTimeout(() => particle.remove(), 1400);
+  }
+}
+
+/* ─────────────────────────
+   LEADERBOARD
+───────────────────────── */
+
+function renderLeaderboard(countryStats) {
+
+  const container =
+    document.getElementById('leaderboard');
+
+  if (
+    !countryStats ||
+    Object.keys(countryStats).length === 0
+  ) {
+
+    container.innerHTML = `
+      <div style="
+        color:#555;
+        font-size:11px;
+        text-align:center;
+        padding:10px;
+      ">
+        No actions yet.
+      </div>
+    `;
+
+    return;
+  }
+
+  const entries =
+    Object.entries(countryStats)
+      .map(([cc,data]) => ({
+        cc,
+        ...data
+      }))
+      .sort((a,b) => b.score - a.score)
+      .slice(0,7);
+
+  container.innerHTML =
+    entries.map((entry,index) => {
+
+      const score = entry.score || 0;
+
+      return `
+        <div class="lb-row">
+
+          <div class="lb-rank">
+            ${index + 1}
+          </div>
+
+          <div class="lb-flag">
+            ${getFlag(entry.cc)}
+          </div>
+
+          <div class="lb-country">
+            ${entry.cc}
+          </div>
+
+          <div class="lb-score ${score >= 0 ? 'pos' : 'neg'}">
+            ${score > 0 ? '+' : ''}${score}
+          </div>
+
+        </div>
+      `;
+
+    }).join('');
+}
+
+/* ─────────────────────────
+   LAST ACTION
+───────────────────────── */
+
+function renderLastAction(action) {
+
+  if (!action) return;
+
+  const labels = {
+    feed: 'fed Gerald',
+    poison: 'poisoned Gerald',
+    play: 'played with Gerald'
+  };
+
+  const emojis = {
+    feed: '🐟',
+    poison: '☠️',
+    play: '🧶'
+  };
+
+  const colors = {
+    feed: '#45df91',
+    poison: '#ff5263',
+    play: '#5d9cff'
+  };
+
+  document.getElementById('last-action').innerHTML = `
+    ${emojis[action.type]}
+    Someone from
+    <strong style="color:${colors[action.type]}">
+      ${action.country}
+    </strong>
+    ${labels[action.type]}.
+  `;
+}
+
+/* ─────────────────────────
+   RESURRECTION
+───────────────────────── */
+
+function updateResurrectionTimer() {
+
+  const el =
+    document.getElementById('res-timer');
+
+  if (
+    !geraldState.resurrectsAt ||
+    geraldState.status !== 'DEAD'
+  ) {
+
+    el.style.display = 'none';
+
+    if (resTimerInterval) {
+      clearInterval(resTimerInterval);
+      resTimerInterval = null;
+    }
+
+    return;
+  }
+
+  const diff =
+    geraldState.resurrectsAt -
+    Date.now();
+
+  if (diff <= 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const mins =
+    Math.floor(diff / 60000);
+
+  const secs =
+    Math.floor((diff % 60000) / 1000);
+
+  el.textContent =
+    `🥚 New kitten arrives in ${mins}m ${String(secs).padStart(2,'0')}s`;
+
+  el.style.display = 'block';
+}
+
+/* ─────────────────────────
+   DEATH MODAL
+───────────────────────── */
+
 function showDeathModal(snapshot) {
-  lastDeathSnapshot = snapshot;
-  const livedMins = Math.floor((snapshot.diedAt - snapshot.bornAt) / 60000);
-  const livedText = livedMins < 1 ? 'Lived less than a minute' : `Lived ${livedMins} minute${livedMins !== 1 ? 's' : ''}`;
-  
-  document.getElementById('dm-gen').textContent = snapshot.generation;
-  document.getElementById('dm-gen-big').textContent = snapshot.generation;
-  document.getElementById('dm-feeds').textContent = snapshot.genStats.feeds || 0;
-  document.getElementById('dm-poisons').textContent = snapshot.genStats.poisons || 0;
-  document.getElementById('dm-plays').textContent = snapshot.genStats.plays || 0;
-  document.getElementById('dm-lived').textContent = livedText;
-  
-  const tweet = `💀 Gerald Cam: Generation ${snapshot.generation} has died.\n\n` +
-    `🐟 Feeds: ${snapshot.genStats.feeds || 0}\n` +
-    `☠️ Poisons: ${snapshot.genStats.poisons || 0}\n` +
-    `🧶 Plays: ${snapshot.genStats.plays || 0}\n` +
-    `⏱️ ${livedText}\n\n` +
-    `The internet couldn't keep this kitty alive. Can you do better?\n` +
-    `${window.location.href}`;
-  
-  document.getElementById('tweet-text').textContent = tweet;
-  document.getElementById('death-modal').classList.add('show');
+
+  const lived =
+    Math.floor(
+      (snapshot.diedAt - snapshot.bornAt) /
+      60000
+    );
+
+  const livedText =
+    lived < 1
+      ? 'Lived less than a minute'
+      : `Lived ${lived} minute${lived === 1 ? '' : 's'}`;
+
+  document.getElementById('dm-gen').textContent =
+    snapshot.generation;
+
+  document.getElementById('dm-gen-big').textContent =
+    snapshot.generation;
+
+  document.getElementById('dm-feeds').textContent =
+    snapshot.genStats.feeds || 0;
+
+  document.getElementById('dm-poisons').textContent =
+    snapshot.genStats.poisons || 0;
+
+  document.getElementById('dm-plays').textContent =
+    snapshot.genStats.plays || 0;
+
+  document.getElementById('dm-lived').textContent =
+    livedText;
+
+  const tweet =
+`💀 Gerald Cam — Generation ${snapshot.generation} has died.
+
+🐟 Feeds: ${snapshot.genStats.feeds || 0}
+☠️ Poisons: ${snapshot.genStats.poisons || 0}
+🧶 Plays: ${snapshot.genStats.plays || 0}
+⏱️ ${livedText}
+
+The internet couldn't keep this cat alive.
+
+Can you do better?
+${window.location.href}`;
+
+  document.getElementById('tweet-text').textContent =
+    tweet;
+
+  document
+    .getElementById('death-modal')
+    .classList.add('show');
 }
 
 function closeModal() {
-  document.getElementById('death-modal').classList.remove('show');
+
+  document
+    .getElementById('death-modal')
+    .classList.remove('show');
 }
 
 function copyTweet() {
-  const text = document.getElementById('tweet-text').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('Tweet copied! Go post it.', 'success');
-  }).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('Tweet copied! Go post it.', 'success');
+
+  const text =
+    document.getElementById('tweet-text').textContent;
+
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      showToast('Death report copied.', 'success');
+    })
+    .catch(() => {
+
+      const textarea =
+        document.createElement('textarea');
+
+      textarea.value = text;
+
+      document.body.appendChild(textarea);
+
+      textarea.select();
+
+      document.execCommand('copy');
+
+      textarea.remove();
+
+      showToast('Death report copied.', 'success');
+    });
+}
+
+/* ─────────────────────────
+   ACTION
+───────────────────────── */
+
+function doAction(type) {
+
+  if (!userCountry)
+    userCountry = 'Unknown';
+
+  socket.emit('action', {
+    type,
+    country: userCountry
   });
 }
 
-function doAction(type) {
-  socket.emit('action', { type, country: userCountry });
-}
+/* ─────────────────────────
+   SOCKET
+───────────────────────── */
 
-/* ─── Socket Events ─── */
-socket.on('connect', () => updateConnectionStatus(true));
+socket.on('connect', () => {
+
+  document.getElementById('connection-text')
+    .textContent = 'Live';
+
+  document
+    .getElementById('live-indicator')
+    .style.background = '#45df91';
+});
+
 socket.on('disconnect', () => {
-  updateConnectionStatus(false);
-  document.getElementById('status-badge').textContent = 'OFFLINE';
-  document.getElementById('status-badge').className = 'badge badge-egg';
-});
-socket.on('connect_error', () => updateConnectionStatus(false));
 
-socket.on('userCount', (count) => {
-  document.getElementById('user-count').textContent = `${count} watching`;
+  document.getElementById('connection-text')
+    .textContent = 'Offline';
+
+  document
+    .getElementById('live-indicator')
+    .style.background = '#ff5263';
+
+  document
+    .getElementById('status-badge')
+    .textContent = 'OFFLINE';
+
+  document
+    .getElementById('status-badge')
+    .className = 'status-badge dead';
 });
 
-socket.on('stateUpdate', (data) => {
+socket.on('connect_error', () => {
+
+  document.getElementById('connection-text')
+    .textContent = 'Offline';
+});
+
+socket.on('userCount', count => {
+
+  document.getElementById('user-count')
+    .textContent =
+      `${count} watching`;
+});
+
+/* ─────────────────────────
+   STATE
+───────────────────────── */
+
+socket.on('stateUpdate', data => {
+
   geraldState = data;
-  document.getElementById('gen').textContent = data.generation;
-  
-  const badge = document.getElementById('status-badge');
-  if (data.status === 'DEAD') { badge.textContent = 'DEAD'; badge.className = 'badge badge-dead'; }
-  else if (data.status === 'EGG') { badge.textContent = 'EGG'; badge.className = 'badge badge-egg'; }
-  else { badge.textContent = 'ALIVE'; badge.className = 'badge badge-alive'; }
-  
-  document.getElementById('mood').textContent = getMood(data);
+
+  document.getElementById('mood')
+    .textContent = getMood(data);
+
   renderAvatar(data);
-  
-  document.getElementById('health-bar').style.width = data.health + '%';
-  document.getElementById('fullness-bar').style.width = data.fullness + '%';
-  document.getElementById('happiness-bar').style.width = data.happiness + '%';
-  document.getElementById('health-val').textContent = Math.round(data.health) + '%';
-  document.getElementById('fullness-val').textContent = Math.round(data.fullness) + '%';
-  document.getElementById('hap-val').textContent = Math.round(data.happiness) + '%';
-  
-  const dead = data.status === 'DEAD' || data.status === 'EGG';
-  document.getElementById('btn-feed').disabled = dead;
-  document.getElementById('btn-poison').disabled = dead;
-  document.getElementById('btn-play').disabled = dead;
-  
-  if (data.stats) {
-    document.getElementById('stat-feeds').textContent = data.stats.feeds || 0;
-    document.getElementById('stat-poisons').textContent = data.stats.poisons || 0;
-    document.getElementById('stat-plays').textContent = data.stats.plays || 0;
-    document.getElementById('stat-deaths').textContent = data.stats.deaths || 0;
-  }
-  
-  if (data.countryStats) renderLeaderboard(data.countryStats);
-  
-  if (data.resurrectsAt && data.status === 'DEAD') {
-    if (!resTimerInterval) resTimerInterval = setInterval(updateResurrectionTimer, 1000);
-    updateResurrectionTimer();
+
+  const badge =
+    document.getElementById('status-badge');
+
+  if (data.status === 'DEAD') {
+
+    badge.textContent = 'DEAD';
+    badge.className = 'status-badge dead';
+
+  } else if (data.status === 'EGG') {
+
+    badge.textContent = 'EGG';
+    badge.className = 'status-badge egg';
+
   } else {
-    if (resTimerInterval) { clearInterval(resTimerInterval); resTimerInterval = null; }
-    document.getElementById('res-timer').style.display = 'none';
+
+    badge.textContent = 'ALIVE';
+    badge.className = 'status-badge';
+  }
+
+  document.getElementById('health-bar')
+    .style.width = `${data.health}%`;
+
+  document.getElementById('fullness-bar')
+    .style.width = `${data.fullness}%`;
+
+  document.getElementById('happiness-bar')
+    .style.width = `${data.happiness}%`;
+
+  document.getElementById('health-val')
+    .textContent =
+      `${Math.round(data.health)}%`;
+
+  document.getElementById('fullness-val')
+    .textContent =
+      `${Math.round(data.fullness)}%`;
+
+  document.getElementById('hap-val')
+    .textContent =
+      `${Math.round(data.happiness)}%`;
+
+  const disabled =
+    data.status === 'DEAD' ||
+    data.status === 'EGG';
+
+  document.getElementById('btn-feed')
+    .disabled = disabled;
+
+  document.getElementById('btn-poison')
+    .disabled = disabled;
+
+  document.getElementById('btn-play')
+    .disabled = disabled;
+
+  if (data.stats) {
+
+    document.getElementById('stat-feeds')
+      .textContent =
+        data.stats.feeds || 0;
+
+    document.getElementById('stat-poisons')
+      .textContent =
+        data.stats.poisons || 0;
+
+    document.getElementById('stat-plays')
+      .textContent =
+        data.stats.plays || 0;
+
+    document.getElementById('stat-deaths')
+      .textContent =
+        data.stats.deaths || 0;
+  }
+
+  renderLeaderboard(data.countryStats);
+
+  if (
+    data.resurrectsAt &&
+    data.status === 'DEAD'
+  ) {
+
+    if (!resTimerInterval) {
+
+      resTimerInterval =
+        setInterval(
+          updateResurrectionTimer,
+          1000
+        );
+    }
+
+    updateResurrectionTimer();
+
+  } else {
+
+    if (resTimerInterval) {
+
+      clearInterval(resTimerInterval);
+      resTimerInterval = null;
+    }
+
+    document.getElementById('res-timer')
+      .style.display = 'none';
   }
 });
 
-socket.on('log', (msg) => {
-  const log = document.getElementById('log');
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.textContent = msg;
+/* ─────────────────────────
+   LOG
+───────────────────────── */
+
+socket.on('log', message => {
+
+  const log =
+    document.getElementById('log');
+
+  const entry =
+    document.createElement('div');
+
+  entry.className = 'activity-entry';
+
+  entry.textContent = message;
+
   log.appendChild(entry);
-  while (log.children.length > 15) log.removeChild(log.children[1]);
+
+  while (log.children.length > 20) {
+    log.removeChild(log.firstChild);
+  }
+
   log.scrollTop = log.scrollHeight;
 });
 
-socket.on('errorMsg', (msg) => showToast(msg, 'error'));
+/* ─────────────────────────
+   ERRORS
+───────────────────────── */
+
+socket.on('errorMsg', message => {
+  showToast(message, 'error');
+});
+
+/* ─────────────────────────
+   ACTION EFFECT
+───────────────────────── */
 
 socket.on('actionEffect', ({ type }) => {
+
   spawnParticles(type);
-  const box = document.getElementById('pet-box');
+
+  const box =
+    document.getElementById('pet-box');
+
   if (type === 'poison') {
-    document.getElementById('main-card').classList.remove('shake-screen');
-    void document.getElementById('main-card').offsetWidth;
-    document.getElementById('main-card').classList.add('shake-screen');
+
+    const stage =
+      document.getElementById('main-card');
+
+    stage.classList.remove('screen-shake');
+
+    void stage.offsetWidth;
+
+    stage.classList.add('screen-shake');
+
   } else {
-    box.classList.remove('anim-wiggle');
+
+    box.classList.remove('cat-wiggle');
+
     void box.offsetWidth;
-    box.classList.add('anim-wiggle');
+
+    box.classList.add('cat-wiggle');
   }
 });
 
-socket.on('lastAction', (action) => renderLastAction(action));
+/* ─────────────────────────
+   LAST ACTION
+───────────────────────── */
 
-socket.on('deathSnapshot', (snapshot) => {
+socket.on('lastAction', action => {
+  renderLastAction(action);
+});
+
+/* ─────────────────────────
+   DEATH
+───────────────────────── */
+
+socket.on('deathSnapshot', snapshot => {
   showDeathModal(snapshot);
 });
 
-document.getElementById('death-modal').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('death-modal')) closeModal();
+/* ─────────────────────────
+   MODAL CLICK OUTSIDE
+───────────────────────── */
+
+document
+  .getElementById('death-modal')
+  .addEventListener('click', event => {
+
+    if (
+      event.target ===
+      document.getElementById('death-modal')
+    ) {
+      closeModal();
+    }
+  });
+
+/* ─────────────────────────
+   ESCAPE
+───────────────────────── */
+
+document.addEventListener('keydown', event => {
+
+  if (event.key === 'Escape') {
+    closeModal();
+  }
+
 });
 </script>
 
 </body>
-</html>
+  </html>
