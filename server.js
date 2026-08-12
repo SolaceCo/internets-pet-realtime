@@ -41,7 +41,7 @@ async function loadState() {
     
     if (saved.status === 'DEAD' && saved.diedAt) {
       const DEAD_FOR = Date.now() - saved.diedAt;
-      const RESURRECTION_TIME = 2 * 60 * 1000;
+      const RESURRECTION_TIME = 15 * 60 * 1000;
       
       if (DEAD_FOR >= RESURRECTION_TIME) {
         resurrectGerald(saved.generation, saved.stats, saved.countryStats, saved.deathHistory);
@@ -134,11 +134,9 @@ setInterval(() => {
     }
 
     if (gerald.health <= 0 && gerald.status !== 'DEAD') {
-      // ─── FIX: Zero out all bars on death ───
       gerald.health = 0;
       gerald.fullness = 0;
       gerald.happiness = 0;
-      // ─── END FIX ───
       
       gerald.status = 'DEAD';
       gerald.diedAt = Date.now();
@@ -235,8 +233,8 @@ io.on('connection', (socket) => {
         gerald.happiness = Math.min(100, gerald.happiness + 5);
         gerald.stats = { ...gerald.stats, feeds: (gerald.stats?.feeds || 0) + 1 };
         logMsg = gerald.health < 30 
-          ? `A hero from ${cc} saved a dying Gerald! ❤️🐟` 
-          : `Someone from ${cc} fed Gerald a tasty fish! 🐟`;
+          ? `A hero from ${cc} saved a dying Gerald! ❤️🌽` 
+          : `Someone from ${cc} fed Gerald some corn! 🌽`;
         effectType = 'feed';
         break;
         
@@ -255,7 +253,7 @@ io.on('connection', (socket) => {
         gerald.happiness = Math.min(100, gerald.happiness + 28);
         gerald.fullness = Math.max(0, gerald.fullness - 4);
         gerald.stats = { ...gerald.stats, plays: (gerald.stats?.plays || 0) + 1 };
-        logMsg = `Someone from ${cc} played with Gerald! 🧶`;
+        logMsg = `Someone from ${cc} played ball with Gerald! 🎾`;
         effectType = 'play';
         break;
     }
@@ -282,5 +280,5 @@ process.on('SIGTERM', shutdown);
 const PORT = process.env.PORT || 3000;
 await loadState();
 httpServer.listen(PORT, () => {
-  console.log(`🐱 Gerald is live on port ${PORT} (Gen ${gerald.generation})`);
+  console.log(`🐔 Gerald is live on port ${PORT} (Gen ${gerald.generation})`);
 });
